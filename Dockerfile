@@ -1,4 +1,3 @@
-
 # Stage 1: Build
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
@@ -9,7 +8,7 @@ RUN mvn clean package -DskipTests
 
 # Stage 2: Run
 FROM eclipse-temurin:17-jre
-RUN useradd -m -u 1000 appuser
+RUN useradd -m -u 1001 appuser
 WORKDIR /app
 COPY --from=build --chown=appuser /app/target/exam-platform-0.0.1-SNAPSHOT.jar app.jar
 USER appuser
