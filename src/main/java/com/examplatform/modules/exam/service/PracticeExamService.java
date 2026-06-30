@@ -20,8 +20,8 @@ public class PracticeExamService {
 
     public ExamSession startFreeExam(String userId) {
         String resolvedUserId = (userId == null || userId.isBlank())
-                ? "guest_" + UUID.randomUUID()
-                : userId;
+        ? UUID.randomUUID().toString()
+        : userId;
 
         Integer availableCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM questions WHERE status = 'APPROVED'", Integer.class);
