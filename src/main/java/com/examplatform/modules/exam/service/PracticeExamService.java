@@ -19,12 +19,20 @@ public class PracticeExamService {
     private final JdbcTemplate jdbcTemplate;
 
     public ExamSession startFreeExam(String userId) {
+        String resolvedUserId = (userId == null || userId.isBlank())
+                ? "guest_" + UUID.randomUUID()
+                : userId;
+
+        Integer availableCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM questions WHERE status = 'APPROVED'", Integer.class);
+        int totalQuestions = Math.min(15, availableCount != null ? availableCount : 0);
+
         ExamSession session = ExamSession.builder()
                 .id(UUID.randomUUID().toString())
-                .userId(userId)
+                .userId(resolvedUserId)
                 .sessionType(ExamSession.SessionType.PRACTICE)
                 .status(ExamSession.Status.IN_PROGRESS)
-                .totalQuestions(15)
+                .totalQuestions(totalQuestions)
                 .attemptedCount(0)
                 .correctCount(0)
                 .wrongCount(0)
@@ -43,7 +51,7 @@ public class PracticeExamService {
                 .orElseThrow(() -> new RuntimeException("Session not found"));
 
         if (session.getAttemptedCount() >= session.getTotalQuestions()) {
-            throw new RuntimeException("Exam already completed");
+            return null; // exam already complete, no more questions to give
         }
 
         int attempted = session.getAttemptedCount();
@@ -136,7 +144,7 @@ public class PracticeExamService {
         }
 
         if (questions.isEmpty()) {
-            throw new RuntimeException("No more questions available");
+            return null; // no more unique questions available, treat as exam end
         }
 
         Map<String, Object> question = questions.get(0);
