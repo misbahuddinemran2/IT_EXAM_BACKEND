@@ -90,7 +90,7 @@ public class PracticeExamService {
         List<Map<String, Object>> topics = jdbcTemplate.queryForList(
                 "SELECT DISTINCT q.topic_id FROM questions q " +
                         "WHERE q.status = 'APPROVED' AND q.topic_id IS NOT NULL " +
-                        "ORDER BY RAND()"
+                        "ORDER BY RANDOM()"
         );
         String selectedTopicId = null;
         if (!topics.isEmpty()) {
@@ -110,7 +110,7 @@ public class PracticeExamService {
                             "AND q.topic_id = ? " +
                             "AND q.id NOT IN (" +
                             "  SELECT qa.question_id FROM user_question_attempts qa WHERE qa.session_id = ?" +
-                            ") ORDER BY RAND() LIMIT 1",
+                            ") ORDER BY RANDOM() LIMIT 1",
                     difficultyLevel, cognitiveLevel, selectedTopicId, sessionId
             );
         }
@@ -124,7 +124,7 @@ public class PracticeExamService {
                             "AND q.cognitive_level = ? " +
                             "AND q.id NOT IN (" +
                             "  SELECT qa.question_id FROM user_question_attempts qa WHERE qa.session_id = ?" +
-                            ") ORDER BY RAND() LIMIT 1",
+                            ") ORDER BY RANDOM() LIMIT 1",
                     difficultyLevel, cognitiveLevel, sessionId
             );
         }
@@ -137,7 +137,7 @@ public class PracticeExamService {
                             "AND q.difficulty_level = ? " +
                             "AND q.id NOT IN (" +
                             "  SELECT qa.question_id FROM user_question_attempts qa WHERE qa.session_id = ?" +
-                            ") ORDER BY RAND() LIMIT 1",
+                            ") ORDER BY RANDOM() LIMIT 1",
                     difficultyLevel, sessionId
             );
         }
