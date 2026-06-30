@@ -39,7 +39,11 @@ public class ExamController {
     @Operation(summary = "Get Next Question")
     public ResponseEntity<QuestionResponse> getNextQuestion(@PathVariable String sessionId) {
         try {
-            return ResponseEntity.ok(practiceExamService.getNextQuestion(sessionId));
+            QuestionResponse question = practiceExamService.getNextQuestion(sessionId);
+            if (question == null) {
+                return ResponseEntity.noContent().build(); // 204 - exam finished, no more questions
+            }
+            return ResponseEntity.ok(question);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
