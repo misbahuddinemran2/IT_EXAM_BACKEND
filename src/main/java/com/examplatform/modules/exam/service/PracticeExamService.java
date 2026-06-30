@@ -3,6 +3,8 @@ package com.examplatform.modules.exam.service;
 import com.examplatform.modules.exam.dto.*;
 import com.examplatform.modules.exam.entity.ExamSession;
 import com.examplatform.modules.exam.repository.ExamSessionRepository;
+import com.examplatform.modules.user.entity.User;
+import com.examplatform.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,12 +18,21 @@ import java.util.stream.Collectors;
 public class PracticeExamService {
 
     private final ExamSessionRepository examSessionRepository;
+    private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
 
     public ExamSession startFreeExam(String userId) {
         String resolvedUserId = (userId == null || userId.isBlank())
-        ? UUID.randomUUID().toString()
-        : userId;
+                ? UUID.randomUUID().toString()
+                : userId;
+
+        if (!userRepository.existsById(resolvedUserId)) {
+            User guestUser = User.builder()
+                    .id(resolvedUserId)
+                    .fullName("Guest User")
+                    .build();
+            userRepository.save(guestUser);
+        }
 
         Integer availableCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM questions WHERE status = 'APPROVED'", Integer.class);
@@ -51,7 +62,7 @@ public class PracticeExamService {
                 .orElseThrow(() -> new RuntimeException("Session not found"));
 
         if (session.getAttemptedCount() >= session.getTotalQuestions()) {
-            return null; // exam already complete, no more questions to give
+            return null;
         }
 
         int attempted = session.getAttemptedCount();
@@ -144,7 +155,7 @@ public class PracticeExamService {
         }
 
         if (questions.isEmpty()) {
-            return null; // no more unique questions available, treat as exam end
+            return null;
         }
 
         Map<String, Object> question = questions.get(0);
