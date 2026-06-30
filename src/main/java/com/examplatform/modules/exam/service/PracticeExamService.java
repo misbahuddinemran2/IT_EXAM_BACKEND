@@ -149,7 +149,7 @@ public class PracticeExamService {
                             "WHERE q.status = 'APPROVED' " +
                             "AND q.id NOT IN (" +
                             "  SELECT qa.question_id FROM user_question_attempts qa WHERE qa.session_id = ?" +
-                            ") ORDER BY RAND() LIMIT 1",
+                            ") ORDER BY RANDOM() LIMIT 1",
                     sessionId
             );
         }
