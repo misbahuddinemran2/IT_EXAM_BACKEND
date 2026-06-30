@@ -201,7 +201,7 @@ public class PracticeExamService {
         if (!request.isSkipped() && request.getSelectedOptionId() != null) {
             List<Map<String, Object>> correctOption = jdbcTemplate.queryForList(
                     "SELECT id, explanation, explanation_bn FROM options " +
-                            "WHERE question_id = ? AND is_correct = 1",
+                            "WHERE question_id = ? AND is_correct = true",
                     request.getQuestionId()
             );
 
@@ -283,9 +283,9 @@ public class PracticeExamService {
                 "SELECT qa.question_id, qa.selected_option_id, qa.is_correct, qa.is_skipped, " +
                         "q.question_text, " +
                         "(SELECT option_text FROM options WHERE id = qa.selected_option_id LIMIT 1) as selected_option_text, " +
-                        "(SELECT id FROM options WHERE question_id = q.id AND is_correct = 1 LIMIT 1) as correct_option_id, " +
-                        "(SELECT option_text FROM options WHERE question_id = q.id AND is_correct = 1 LIMIT 1) as correct_option_text, " +
-                        "(SELECT explanation FROM options WHERE question_id = q.id AND is_correct = 1 LIMIT 1) as explanation " +
+                        "(SELECT id FROM options WHERE question_id = q.id AND is_correct = true LIMIT 1) as correct_option_id, " +
+                        "(SELECT option_text FROM options WHERE question_id = q.id AND is_correct = true LIMIT 1) as correct_option_text, " +
+                        "(SELECT explanation FROM options WHERE question_id = q.id AND is_correct = true LIMIT 1) as explanation " +
                         "FROM user_question_attempts qa " +
                         "JOIN questions q ON qa.question_id = q.id " +
                         "WHERE qa.session_id = ? ORDER BY qa.answered_at",
