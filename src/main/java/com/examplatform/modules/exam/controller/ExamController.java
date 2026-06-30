@@ -31,6 +31,7 @@ public class ExamController {
             response.put("message", "Exam started successfully");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            log.error("START-FREE-EXAM ERROR: ", e);
             return ResponseEntity.badRequest().build();
         }
     }
@@ -41,10 +42,11 @@ public class ExamController {
         try {
             QuestionResponse question = practiceExamService.getNextQuestion(sessionId);
             if (question == null) {
-                return ResponseEntity.noContent().build(); // 204 - exam finished, no more questions
+                return ResponseEntity.noContent().build();
             }
             return ResponseEntity.ok(question);
         } catch (Exception e) {
+            log.error("NEXT-QUESTION ERROR for session {}: ", sessionId, e);
             return ResponseEntity.badRequest().build();
         }
     }
@@ -57,6 +59,7 @@ public class ExamController {
         try {
             return ResponseEntity.ok(practiceExamService.submitAnswer(sessionId, request));
         } catch (Exception e) {
+            log.error("SUBMIT-ANSWER ERROR for session {}: ", sessionId, e);
             return ResponseEntity.badRequest().build();
         }
     }
@@ -74,6 +77,7 @@ public class ExamController {
             response.put("timeSpentSec", session.getTimeSpentSec());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            log.error("PROGRESS ERROR for session {}: ", sessionId, e);
             return ResponseEntity.badRequest().build();
         }
     }
