@@ -87,11 +87,12 @@ public class PracticeExamService {
             cognitiveLevel = "ANALYZE";
         }
 
+
         List<Map<String, Object>> topics = jdbcTemplate.queryForList(
-                "SELECT DISTINCT q.topic_id FROM questions q " +
-                        "WHERE q.status = 'APPROVED' AND q.topic_id IS NOT NULL " +
-                        "ORDER BY RANDOM()"
-        );
+        "SELECT DISTINCT q.topic_id FROM questions q " +
+                "WHERE q.status = 'APPROVED' AND q.topic_id IS NOT NULL"
+);
+        
         String selectedTopicId = null;
         if (!topics.isEmpty()) {
             int topicIndex = (attempted / 3) % topics.size();
