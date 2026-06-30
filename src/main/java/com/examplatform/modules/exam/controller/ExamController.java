@@ -21,7 +21,7 @@ public class ExamController {
 
     @GetMapping("/free-exam/start")
     @Operation(summary = "Start Free Exam", description = "Start a free 15-mark exam")
-    public ResponseEntity<Map<String, Object>> startFreeExam(@RequestParam String userId) {
+    public ResponseEntity<Map<String, Object>> startFreeExam(@RequestParam(required = false) String userId) {
         try {
             var session = practiceExamService.startFreeExam(userId);
             Map<String, Object> response = new HashMap<>();
@@ -74,25 +74,14 @@ public class ExamController {
         }
     }
 
-//    @PostMapping("/{sessionId}/finish")
-//    @Operation(summary = "Finish Exam")
-//    public ResponseEntity<ExamResultResponse> finishExam(@PathVariable String sessionId) {
-//        try {
-//            return ResponseEntity.ok(practiceExamService.finishExam(sessionId));
-//
-//        } catch (Exception e) {
-//            return ResponseEntity.badRequest().build();
-//        }
-//    }
-
     @PostMapping("/{sessionId}/finish")
     public ResponseEntity<ExamResultResponse> finishExam(@PathVariable String sessionId) {
         try {
             ExamResultResponse result = practiceExamService.finishExam(sessionId);
-            log.info("FINISH RESULT: {}", result);  // add this
+            log.info("FINISH RESULT: {}", result);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("FINISH ERROR: ", e);  // add this
+            log.error("FINISH ERROR: ", e);
             return ResponseEntity.badRequest().build();
         }
     }
