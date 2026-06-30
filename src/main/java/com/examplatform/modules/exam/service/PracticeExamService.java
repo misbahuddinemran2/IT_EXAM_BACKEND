@@ -87,12 +87,10 @@ public class PracticeExamService {
             cognitiveLevel = "ANALYZE";
         }
 
-
         List<Map<String, Object>> topics = jdbcTemplate.queryForList(
-        "SELECT DISTINCT q.topic_id FROM questions q " +
-                "WHERE q.status = 'APPROVED' AND q.topic_id IS NOT NULL"
-);
-        
+                "SELECT DISTINCT q.topic_id FROM questions q " +
+                        "WHERE q.status = 'APPROVED' AND q.topic_id IS NOT NULL"
+        );
         String selectedTopicId = null;
         if (!topics.isEmpty()) {
             int topicIndex = (attempted / 3) % topics.size();
@@ -216,11 +214,11 @@ public class PracticeExamService {
             jdbcTemplate.update(
                     "INSERT INTO user_question_attempts " +
                             "(id, session_id, question_id, selected_option_id, is_correct, is_skipped, time_spent_sec, answered_at) " +
-                            "VALUES (UUID(), ?, ?, ?, ?, 0, ?, NOW())",
+                            "VALUES (gen_random_uuid(), ?, ?, ?, ?, false, ?, NOW())",
                     sessionId,
                     request.getQuestionId(),
                     request.getSelectedOptionId(),
-                    isCorrect ? 1 : 0,
+                    isCorrect,
                     request.getTimeSpentSec()
             );
 
@@ -236,7 +234,7 @@ public class PracticeExamService {
             jdbcTemplate.update(
                     "INSERT INTO user_question_attempts " +
                             "(id, session_id, question_id, is_correct, is_skipped, time_spent_sec, answered_at) " +
-                            "VALUES (UUID(), ?, ?, 0, 1, ?, NOW())",
+                            "VALUES (gen_random_uuid(), ?, ?, false, true, ?, NOW())",
                     sessionId,
                     request.getQuestionId(),
                     request.getTimeSpentSec()
