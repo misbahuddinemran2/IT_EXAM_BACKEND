@@ -46,6 +46,12 @@ public class User {
     @Column(name = "district", length = 100)
     private String district;
 
+    @Column(name = "institution_name", length = 150)
+private String institutionName;
+
+@Column(name = "session", length = 20)
+private String session;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "education_level")
     private EducationLevel educationLevel;
