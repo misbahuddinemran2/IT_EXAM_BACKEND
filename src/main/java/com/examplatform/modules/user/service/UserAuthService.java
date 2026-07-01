@@ -25,29 +25,47 @@ public class UserAuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final SubscriptionService subscriptionService; // ✅ নতুন inject
+    private final SubscriptionService subscriptionService;
 
     // ─── Registration ─────────────────────────────────────────
     @Transactional
     public ApiResponse<AuthResponse> register(RegisterRequest request) {
 
         // Validation
-        if (request.getEmail() == null && request.getPhone() == null) {
-            throw new ValidationException("Email অথবা Phone নম্বর দিতে হবে");
-        }
         if (request.getFullName() == null || request.getFullName().isBlank()) {
             throw new ValidationException("নাম দিতে হবে");
+        }
+        if (request.getPhone() == null || request.getPhone().isBlank()) {
+            throw new ValidationException("Phone নম্বর দিতে হবে");
         }
         if (request.getPassword() == null || request.getPassword().length() < 6) {
             throw new ValidationException("Password কমপক্ষে ৬ অক্ষরের হতে হবে");
         }
+        if (request.getInstitutionName() == null || request.getInstitutionName().isBlank()) {
+            throw new ValidationException("School/College নাম দিতে হবে");
+        }
+        if (request.getEducationLevel() == null || request.getEducationLevel().isBlank()) {
+            throw new ValidationException("Class (SSC/HSC) সিলেক্ট করতে হবে");
+        }
+        if (request.getDistrict() == null || request.getDistrict().isBlank()) {
+            throw new ValidationException("জেলা সিলেক্ট করতে হবে");
+        }
 
         // Duplicate check
-        if (request.getEmail() != null && userRepository.existsByEmail(request.getEmail())) {
+        if (request.getEmail() != null && !request.getEmail().isBlank()
+                && userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("এই Email দিয়ে আগেই account আছে");
         }
-        if (request.getPhone() != null && userRepository.existsByPhone(request.getPhone())) {
+        if (userRepository.existsByPhone(request.getPhone())) {
             throw new DuplicateResourceException("এই Phone নম্বর দিয়ে আগেই account আছে");
+        }
+
+        // Education Level validation
+        User.EducationLevel educationLevel;
+        try {
+            educationLevel = User.EducationLevel.valueOf(request.getEducationLevel().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Class ভুল — SSC অথবা HSC দিতে হবে");
         }
 
         // User build
@@ -58,6 +76,10 @@ public class UserAuthService {
                 .phone(request.getPhone())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .authProvider(User.AuthProvider.LOCAL)
+                .institutionName(request.getInstitutionName())
+                .educationLevel(educationLevel)
+                .session(request.getSession())
+                .district(request.getDistrict())
                 .referredBy(request.getReferredBy())
                 .build();
 
@@ -77,7 +99,7 @@ public class UserAuthService {
     public ApiResponse<AuthResponse> login(LoginRequest request) {
 
         if (request.getIdentifier() == null || request.getIdentifier().isBlank()) {
-            throw new ValidationException("Email অথবা Phone দিতে হবে");
+            throw new ValidationException("Phone নম্বর দিতে হবে");
         }
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new ValidationException("Password দিতে হবে");
@@ -94,7 +116,7 @@ public class UserAuthService {
         // Password check
         if (user.getPasswordHash() == null ||
                 !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new ValidationException("Email/Phone অথবা Password ভুল হয়েছে");
+            throw new ValidationException("Phone অথবা Password ভুল হয়েছে");
         }
 
         // Last login update
