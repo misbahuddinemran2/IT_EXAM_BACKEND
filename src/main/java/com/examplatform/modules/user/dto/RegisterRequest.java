@@ -6,8 +6,12 @@ import lombok.Data;
 public class RegisterRequest {
     private String fullName;
     private String fullNameBn;
-    private String email;       // email অথবা phone — একটা লাগবেই
-    private String phone;
+    private String email;       // optional
+    private String phone;       // required
     private String password;
-    private String referredBy;  // optional
+    private String institutionName;  // স্কুল/কলেজ নাম
+    private String educationLevel;   // SSC / HSC
+    private String session;          // যেমন 2024-2025
+    private String district;         // ৮টা বিভাগ/জেলার একটা
+    private String referredBy;
 }
