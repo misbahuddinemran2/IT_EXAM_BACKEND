@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+ import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.Map;
@@ -24,26 +25,28 @@ public class ExamAdminController {
     // CREATE EXAM
     // POST /api/v1/admin/exams/create
     // ============================================
-    @PostMapping("/create")
-    public ResponseEntity<?> createExam(
-            @RequestBody ExamCreationRequest request,
-            @RequestHeader("X-Admin-Id") String adminId) {
-        try {
-            ExamResponse response = examAdminService.createExam(request, adminId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(
-                    Map.of(
-                            "success", true,
-                            "message", "Exam created successfully",
-                            "data", response
-                    )
-            );
-        } catch (Exception e) {
-            log.error("Error creating exam: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(
-                    Map.of("success", false, "message", e.getMessage())
-            );
-        }
+
+@PostMapping("/create")
+public ResponseEntity<?> createExam(
+        @RequestBody ExamCreationRequest request,
+        Authentication authentication) {
+    try {
+        String adminId = authentication != null ? authentication.getName() : "system";
+        ExamResponse response = examAdminService.createExam(request, adminId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                Map.of(
+                        "success", true,
+                        "message", "Exam created successfully",
+                        "data", response
+                )
+        );
+    } catch (Exception e) {
+        log.error("Error creating exam: {}", e.getMessage());
+        return ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", e.getMessage())
+        );
     }
+}
 
     // ============================================
     // UPDATE EXAM (শুধু DRAFT)
