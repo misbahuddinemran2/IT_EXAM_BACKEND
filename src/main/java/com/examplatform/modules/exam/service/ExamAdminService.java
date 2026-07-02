@@ -57,6 +57,7 @@ public class ExamAdminService {
                 .shuffleOptions(request.isShuffleOptions())
                 .showResultAfterSubmit(request.isShowResultAfterSubmit())
                 .isPremiumOnly(request.isPremiumOnly())
+                .targetLevels(resolveTargetLevels(request.getTargetLevels()))
                 .createdBy(adminId)
                 .build();
 
@@ -127,6 +128,7 @@ public class ExamAdminService {
         exam.setShuffleOptions(request.isShuffleOptions());
         exam.setShowResultAfterSubmit(request.isShowResultAfterSubmit());
         exam.setPremiumOnly(request.isPremiumOnly());
+        exam.setTargetLevels(resolveTargetLevels(request.getTargetLevels()));
 
         // পুরানো configs মুছে নতুন save
         subjectConfigRepository.deleteByExamId(examId);
@@ -651,6 +653,13 @@ public class ExamAdminService {
         return ids.stream()
                 .map(id -> "'" + id + "'")
                 .collect(Collectors.joining(","));
+    }
+
+    // targetLevels null/empty হলে default ["ALL"]
+    private List<String> resolveTargetLevels(List<String> targetLevels) {
+        return (targetLevels == null || targetLevels.isEmpty())
+                ? List.of("ALL")
+                : targetLevels;
     }
 
     // Exam code generate
