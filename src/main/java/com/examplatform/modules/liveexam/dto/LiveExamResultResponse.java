@@ -10,7 +10,7 @@ public class LiveExamResultResponse {
     private double obtainedMarks;
     private double totalMarks;
     private double percentage;
-    private Integer rank;         // leaderboard rank
+    private Integer rank;
     private int totalParticipants;
     private List<QuestionResultDto> questions;
 
@@ -25,5 +25,7 @@ public class LiveExamResultResponse {
         private String correctOptionId;
         private String correctOptionText;
         private String explanation;
+        private double marksObtained;
+        private double maxMarks;
     }
 }
