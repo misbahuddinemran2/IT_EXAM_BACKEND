@@ -547,6 +547,7 @@ public class LiveExamService {
                 .startedAt(session.getStartedAt())
                 .expiresAt(session.getExpiresAt())
                 .remainingSeconds(remaining)
+            .negativeMarking(exam.getNegativeMarking())
                 .questions(questions)
                 .build();
     }
