@@ -273,4 +273,49 @@ public ResponseEntity<?> createExam(
             );
         }
     }
+
+
+    // ============================================
+    // GET EXAM QUESTIONS
+    // GET /api/v1/admin/exams/{examId}/questions
+    // ============================================
+    @GetMapping("/{examId}/questions")
+    public ResponseEntity<?> getExamQuestions(@PathVariable String examId) {
+        try {
+            List<ExamQuestionDetailResponse> questions =
+                    examAdminService.getExamQuestions(examId);
+            return ResponseEntity.ok(
+                    Map.of("success", true, "data", questions, "total", questions.size())
+            );
+        } catch (Exception e) {
+            log.error("Error fetching questions for exam {}: {}", examId, e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    Map.of("success", false, "message", e.getMessage())
+            );
+        }
+    }
+
+    // ============================================
+    // REPLACE A SINGLE QUESTION IN EXAM
+    // PUT /api/v1/admin/exams/{examId}/questions/{examQuestionId}/replace
+    // ============================================
+    @PutMapping("/{examId}/questions/{examQuestionId}/replace")
+    public ResponseEntity<?> replaceQuestion(
+            @PathVariable String examId,
+            @PathVariable String examQuestionId,
+            @RequestBody Map<String, String> body) {
+        try {
+            String newQuestionId = body.get("newQuestionId");
+            examAdminService.replaceExamQuestion(examId, examQuestionId, newQuestionId);
+            return ResponseEntity.ok(
+                    Map.of("success", true, "message", "প্রশ্ন সফলভাবে পাল্টানো হয়েছে")
+            );
+        } catch (Exception e) {
+            log.error("Error replacing question in exam {}: {}", examId, e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    Map.of("success", false, "message", e.getMessage())
+            );
+        }
+    }
+
 }
