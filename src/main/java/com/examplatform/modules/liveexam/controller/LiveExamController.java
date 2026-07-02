@@ -24,7 +24,7 @@ public class LiveExamController {
     public ResponseEntity<?> getTodaysLiveExams(@RequestHeader("X-User-Id") String userId) {
         try {
             String userLevel = getUserEducationLevel(userId);
-            List<LiveExamSummaryResponse> data = liveExamService.getTodaysLiveExams(userLevel);
+            List<LiveExamSummaryResponse> data = liveExamService.getTodaysLiveExams(userLevel, userId);
             return ResponseEntity.ok(Map.of("success", true, "data", data));
         } catch (Exception ex) {
             log.error("Error fetching today's live exams", ex);
