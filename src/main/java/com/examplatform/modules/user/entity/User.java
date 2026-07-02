@@ -127,7 +127,14 @@ private String session;
         MALE, FEMALE, OTHER
     }
 
-    public enum EducationLevel {
-        SSC, HSC, HONORS, MASTERS, OTHER
-    }
+   public enum EducationLevel {
+    CLASS_9,
+    NEW_CLASS_10,
+    SSC,
+    HSC_1ST_YEAR,
+    HSC_2ND_YEAR,
+    HONORS,
+    MASTERS,
+    OTHER
+}
 }
