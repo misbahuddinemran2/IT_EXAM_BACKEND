@@ -23,6 +23,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 public class LiveExamService {
 
     private static final int GRACE_PERIOD_MINUTES = 5;
+    private static final ZoneId BD_ZONE = ZoneId.of("Asia/Dhaka");
 
     private final ExamRepository examRepository;
     private final ExamQuestionRepository examQuestionRepository;
@@ -46,7 +48,7 @@ public class LiveExamService {
     // ============================================
     @Transactional(readOnly = true)
     public List<Exam> getTodaysLiveExams(String userLevel) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(BD_ZONE);
         List<Exam> exams = examRepository.findByPublishStatusAndExamDate(
                 Exam.PublishStatus.PUBLISHED, today);
 
@@ -74,12 +76,12 @@ public class LiveExamService {
             throw new RuntimeException("This exam is not published.");
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(BD_ZONE);
         if (!exam.getExamDate().equals(today)) {
             throw new RuntimeException("This exam is not scheduled for today.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(BD_ZONE);
         LocalDateTime windowEnd = LocalDateTime.of(today, LocalTime.of(23, 59, 59));
         if (now.isAfter(windowEnd)) {
             throw new RuntimeException("Exam window for today has closed.");
@@ -137,7 +139,7 @@ public class LiveExamService {
     }
 
     private LiveExamStartResponse resumeInternal(LiveExamSession session, Exam exam) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(BD_ZONE);
 
         if (session.getStatus() == LiveExamSession.Status.SUBMITTED
                 || session.getStatus() == LiveExamSession.Status.AUTO_SUBMITTED) {
@@ -178,7 +180,7 @@ public class LiveExamService {
         LiveExamSession session = getOwnedSession(sessionId, userId);
         if (session.getStatus() == LiveExamSession.Status.IN_PROGRESS
                 || session.getStatus() == LiveExamSession.Status.DISCONNECTED) {
-            session.setLastSeenAt(LocalDateTime.now());
+            session.setLastSeenAt(LocalDateTime.now(BD_ZONE));
             if (session.getStatus() == LiveExamSession.Status.DISCONNECTED) {
                 session.setStatus(LiveExamSession.Status.IN_PROGRESS);
                 session.setDisconnectedAt(null);
@@ -193,7 +195,7 @@ public class LiveExamService {
         LiveExamSession session = getOwnedSession(sessionId, userId);
         if (session.getStatus() == LiveExamSession.Status.IN_PROGRESS) {
             session.setStatus(LiveExamSession.Status.DISCONNECTED);
-            session.setDisconnectedAt(LocalDateTime.now());
+            session.setDisconnectedAt(LocalDateTime.now(BD_ZONE));
             liveSessionRepository.save(session);
         }
     }
@@ -224,7 +226,7 @@ public class LiveExamService {
             session.setMarkedForReview(marked);
         }
 
-        session.setLastSeenAt(LocalDateTime.now());
+        session.setLastSeenAt(LocalDateTime.now(BD_ZONE));
         liveSessionRepository.save(session);
     }
 
@@ -277,7 +279,7 @@ public class LiveExamService {
 
         session.setObtainedMarks(obtained);
         session.setStatus(finalStatus);
-        session.setSubmittedAt(LocalDateTime.now());
+        session.setSubmittedAt(LocalDateTime.now(BD_ZONE));
         liveSessionRepository.save(session);
 
         // Attempt history তেও save করি (reuse করলাম existing infra)
@@ -313,7 +315,7 @@ public class LiveExamService {
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
         LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), LocalTime.of(23, 59, 59));
-        if (LocalDateTime.now().isBefore(windowEnd)) {
+        if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
             throw new RuntimeException("Result will be available after the exam window closes at 11:59 PM.");
         }
 
@@ -334,7 +336,6 @@ public class LiveExamService {
             Question q = questionRepository.findById(eq.getQuestionId()).orElse(null);
             if (q == null) continue;
 
-            // ✅ ঠিক করা মেথড নেম
             List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(q.getId());
 
             Option correct = options.stream().filter(Option::isCorrect).findFirst().orElse(null);
@@ -388,7 +389,7 @@ public class LiveExamService {
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
         LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), LocalTime.of(23, 59, 59));
-        if (LocalDateTime.now().isBefore(windowEnd)) {
+        if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
             throw new RuntimeException("Leaderboard will be available after the exam window closes at 11:59 PM.");
         }
 
@@ -416,7 +417,7 @@ public class LiveExamService {
     // ============================================
     @Transactional
     public void processExpiredSessions() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(BD_ZONE);
 
         // A) Grace period পার হয়ে যাওয়া disconnected sessions
         LocalDateTime graceCutoff = now.minusMinutes(GRACE_PERIOD_MINUTES);
@@ -451,7 +452,7 @@ public class LiveExamService {
                 && session.getStatus() != LiveExamSession.Status.DISCONNECTED) {
             throw new RuntimeException("This exam session is no longer active.");
         }
-        if (LocalDateTime.now().isAfter(session.getExpiresAt())) {
+        if (LocalDateTime.now(BD_ZONE).isAfter(session.getExpiresAt())) {
             throw new RuntimeException("Time is up for this exam.");
         }
     }
@@ -465,7 +466,6 @@ public class LiveExamService {
             Question q = questionRepository.findById(eq.getQuestionId()).orElse(null);
             if (q == null) continue;
 
-            // ✅ ঠিক করা মেথড নেম
             List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(q.getId());
 
             List<LiveQuestionResponse.OptionDto> optionDtos = options.stream()
@@ -489,7 +489,7 @@ public class LiveExamService {
                     .build());
         }
 
-        long remaining = Math.max(0, ChronoUnit.SECONDS.between(LocalDateTime.now(), session.getExpiresAt()));
+        long remaining = Math.max(0, ChronoUnit.SECONDS.between(LocalDateTime.now(BD_ZONE), session.getExpiresAt()));
 
         return LiveExamStartResponse.builder()
                 .sessionId(session.getId())
