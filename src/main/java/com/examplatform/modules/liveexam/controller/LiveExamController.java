@@ -1,6 +1,4 @@
 package com.examplatform.modules.liveexam.controller;
-
-import com.examplatform.modules.exam.entity.Exam;
 import com.examplatform.modules.liveexam.dto.*;
 import com.examplatform.modules.liveexam.service.LiveExamService;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -27,17 +24,7 @@ public class LiveExamController {
     public ResponseEntity<?> getTodaysLiveExams(@RequestHeader("X-User-Id") String userId) {
         try {
             String userLevel = getUserEducationLevel(userId);
-            List<Exam> exams = liveExamService.getTodaysLiveExams(userLevel);
-            var data = exams.stream().map(e -> Map.of(
-                    "id", e.getId(),
-                    "name", e.getName(),
-                    "examType", e.getExamType().name(),
-                    "totalQuestions", e.getTotalQuestions(),
-                    "totalMarks", e.getTotalMarks(),
-                    "durationMinutes", e.getDurationMinutes(),
-                    "startTime", e.getStartTime(),
-                    "endTime", e.getEndTime()
-            )).collect(Collectors.toList());
+            List<LiveExamSummaryResponse> data = liveExamService.getTodaysLiveExams(userLevel);
             return ResponseEntity.ok(Map.of("success", true, "data", data));
         } catch (Exception ex) {
             log.error("Error fetching today's live exams", ex);
