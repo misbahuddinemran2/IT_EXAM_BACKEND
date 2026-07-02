@@ -67,4 +67,11 @@ public class ExamCreationRequest {
     // Manual question selection (optional)
     // Admin manually question choose করলে
     private List<String> manualQuestionIds;
+
+    // ============================================
+    // Visibility Control
+    // কোন education level(s) এই exam দেখতে পারবে
+    // null/empty হলে service layer এ default ["ALL"] বসবে
+    // ============================================
+    private List<String> targetLevels;
 }
