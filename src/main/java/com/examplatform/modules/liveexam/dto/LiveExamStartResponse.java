@@ -1,6 +1,7 @@
 package com.examplatform.modules.liveexam.dto;
 
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,5 +14,6 @@ public class LiveExamStartResponse {
     private LocalDateTime startedAt;
     private LocalDateTime expiresAt;
     private long remainingSeconds;
+    private BigDecimal negativeMarking;
     private List<LiveQuestionResponse> questions; // full question set upfront
 }
