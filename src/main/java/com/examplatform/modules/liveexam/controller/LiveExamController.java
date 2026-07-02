@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/live-exams")
+@RequestMapping("live-exams")
 @RequiredArgsConstructor
 public class LiveExamController {
 
