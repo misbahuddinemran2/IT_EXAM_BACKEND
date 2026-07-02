@@ -58,18 +58,18 @@ public class LiveExamService {
     // 1. VISIBILITY — আজকের published live exams
     // ============================================
     @Transactional(readOnly = true)
-    public List<LiveExamSummaryResponse> getTodaysLiveExams(String userLevel) {
+     public List<LiveExamSummaryResponse> getTodaysLiveExams(String userLevel, String userId) {
         LocalDate today = LocalDate.now(BD_ZONE);
         List<Exam> exams = examRepository.findByPublishStatusAndExamDate(
                 Exam.PublishStatus.PUBLISHED, today);
 
         return exams.stream()
                 .filter(e -> isVisibleToUser(e, userLevel))
-                .map(this::buildLiveExamSummary)
+                .map(e -> buildLiveExamSummary(e, userId))
                 .collect(Collectors.toList());
     }
 
-    private LiveExamSummaryResponse buildLiveExamSummary(Exam exam) {
+    private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) { 
         List<ExamSubjectConfig> subjectConfigs = subjectConfigRepository.findByExamId(exam.getId());
         List<ExamTopicConfig> topicConfigs = topicConfigRepository.findByExamId(exam.getId());
 
@@ -115,7 +115,11 @@ public class LiveExamService {
                 .endTime(exam.getEndTime())
                 .targetLevels(exam.getTargetLevels())
                 .isPremiumOnly(exam.isPremiumOnly())
+                .attemptStatus(liveSessionRepository.findByExamIdAndUserId(exam.getId(), userId)
+                        .map(s -> s.getStatus().name())
+                        .orElse("NOT_STARTED"))
                 .build();
+ 
     }
 
     private boolean isVisibleToUser(Exam exam, String userLevel) {
