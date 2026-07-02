@@ -1,8 +1,10 @@
 package com.examplatform.modules.exam.entity;
+
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -71,10 +73,13 @@ public class Exam {
     @Column(name = "is_premium_only", nullable = false)
     @Builder.Default
     private boolean isPremiumOnly = false;
+
+    // কোন education level(s) এই exam দেখতে পারবে ("ALL" = সবাই)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "target_levels", columnDefinition = "jsonb", nullable = false)
     @Builder.Default
     private List<String> targetLevels = List.of("ALL");
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     // Audit
