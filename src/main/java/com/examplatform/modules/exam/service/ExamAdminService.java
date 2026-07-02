@@ -185,10 +185,9 @@ public class ExamAdminService {
         exam.setPublishStatus(Exam.PublishStatus.PUBLISHED);
         Exam published = examRepository.save(exam);
 
-        log.info("Exam published: {}", examId);
+        log.info("Exam published/republished: {}", examId);
         return buildExamResponse(published);
     }
-
     // ============================================
     // ARCHIVE EXAM
     // ============================================
@@ -323,6 +322,42 @@ public class ExamAdminService {
                 .totalAttempts(attemptHistoryRepository.count())
                 .build();
     }
+
+    // ============================================
+    // GET EXAM QUESTIONS (with details)
+    // ============================================
+    public List<ExamQuestionDetailResponse> getExamQuestions(String examId) {
+        List<ExamQuestion> examQuestions = examQuestionRepository
+                .findByExamIdOrderByOrderNumberAsc(examId);
+
+        return examQuestions.stream()
+                .map(this::buildExamQuestionDetailResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ============================================
+    // REPLACE INDIVIDUAL QUESTION
+    // ============================================
+    @Transactional
+    public void replaceExamQuestion(String examId, String examQuestionId, String newQuestionId) {
+        ExamQuestion existing = examQuestionRepository.findById(examQuestionId)
+                .orElseThrow(() -> new RuntimeException("Exam question not found: " + examQuestionId));
+
+        if (!existing.getExamId().equals(examId)) {
+            throw new RuntimeException("এই প্রশ্নটি এই exam-এর অংশ না");
+        }
+
+        if (examQuestionRepository.existsByExamIdAndQuestionId(examId, newQuestionId)) {
+            throw new RuntimeException("এই প্রশ্নটি ইতিমধ্যে exam-এ আছে");
+        }
+
+        existing.setQuestionId(newQuestionId);
+        examQuestionRepository.save(existing);
+
+        log.info("Exam {}: question {} replaced with {}", examId, examQuestionId, newQuestionId);
+    }
+
+
 
     // ============================================
     // PRIVATE — AUTO SELECT QUESTIONS
@@ -811,6 +846,25 @@ public class ExamAdminService {
                 .applyPercent(config.getApplyPercent())
                 .analyzePercent(config.getAnalyzePercent())
                 .evaluatePercent(config.getEvaluatePercent())
+                .build();
+    }
+
+    // ============================================
+    // NEW — Exam Question Detail Builder
+    // ============================================
+    private ExamQuestionDetailResponse buildExamQuestionDetailResponse(ExamQuestion eq) {
+        Map<String, Object> q = jdbcTemplate.queryForList(
+                "SELECT question_text, difficulty_level, subject_id FROM questions WHERE id = ?",
+                eq.getQuestionId()
+        ).stream().findFirst().orElse(Map.of());
+
+        return ExamQuestionDetailResponse.builder()
+                .examQuestionId(eq.getId())
+                .questionId(eq.getQuestionId())
+                .questionText((String) q.get("question_text"))
+                .difficultyLevel((Integer) q.get("difficulty_level"))
+                .marks(eq.getMarks().doubleValue())
+                .orderNumber(eq.getOrderNumber())
                 .build();
     }
 }
