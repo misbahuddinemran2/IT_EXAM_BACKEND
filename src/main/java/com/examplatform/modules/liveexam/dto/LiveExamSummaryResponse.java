@@ -34,4 +34,7 @@ public class LiveExamSummaryResponse {
 
     private List<String> targetLevels;
     private boolean isPremiumOnly;
+    
+    private String attemptStatus;
+    
 }
