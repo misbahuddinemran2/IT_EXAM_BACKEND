@@ -1,10 +1,13 @@
 package com.examplatform.modules.liveexam.service;
-
 import com.examplatform.modules.exam.entity.Exam;
 import com.examplatform.modules.exam.entity.ExamQuestion;
+import com.examplatform.modules.exam.entity.ExamSubjectConfig;
+import com.examplatform.modules.exam.entity.ExamTopicConfig;
 import com.examplatform.modules.exam.repository.ExamAttemptHistoryRepository;
 import com.examplatform.modules.exam.repository.ExamQuestionRepository;
 import com.examplatform.modules.exam.repository.ExamRepository;
+import com.examplatform.modules.exam.repository.ExamSubjectConfigRepository;
+import com.examplatform.modules.exam.repository.ExamTopicConfigRepository;
 import com.examplatform.modules.exam.entity.ExamAttemptHistory;
 import com.examplatform.modules.liveexam.dto.*;
 import com.examplatform.modules.liveexam.entity.LiveExamSession;
@@ -13,6 +16,9 @@ import com.examplatform.modules.question.entity.Option;
 import com.examplatform.modules.question.entity.Question;
 import com.examplatform.modules.question.repository.OptionRepository;
 import com.examplatform.modules.question.repository.QuestionRepository;
+import com.examplatform.modules.taxonomy.repository.SubjectRepository;
+import com.examplatform.modules.taxonomy.repository.ChapterRepository;
+import com.examplatform.modules.taxonomy.repository.TopicRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,19 +48,74 @@ public class LiveExamService {
     private final OptionRepository optionRepository;
     private final LiveExamSessionRepository liveSessionRepository;
     private final ExamAttemptHistoryRepository attemptHistoryRepository;
+    private final ExamSubjectConfigRepository subjectConfigRepository;
+    private final ExamTopicConfigRepository topicConfigRepository;
+    private final SubjectRepository subjectRepository;
+    private final ChapterRepository chapterRepository;
+    private final TopicRepository topicRepository;
 
     // ============================================
     // 1. VISIBILITY — আজকের published live exams
     // ============================================
     @Transactional(readOnly = true)
-    public List<Exam> getTodaysLiveExams(String userLevel) {
+    public List<LiveExamSummaryResponse> getTodaysLiveExams(String userLevel) {
         LocalDate today = LocalDate.now(BD_ZONE);
         List<Exam> exams = examRepository.findByPublishStatusAndExamDate(
                 Exam.PublishStatus.PUBLISHED, today);
 
         return exams.stream()
                 .filter(e -> isVisibleToUser(e, userLevel))
+                .map(this::buildLiveExamSummary)
                 .collect(Collectors.toList());
+    }
+
+    private LiveExamSummaryResponse buildLiveExamSummary(Exam exam) {
+        List<ExamSubjectConfig> subjectConfigs = subjectConfigRepository.findByExamId(exam.getId());
+        List<ExamTopicConfig> topicConfigs = topicConfigRepository.findByExamId(exam.getId());
+
+        Set<String> subjectNames = new LinkedHashSet<>();
+        Set<String> chapterNames = new LinkedHashSet<>();
+        Set<String> topicNames = new LinkedHashSet<>();
+
+        for (ExamSubjectConfig sc : subjectConfigs) {
+            subjectRepository.findById(sc.getSubjectId())
+                    .ifPresent(s -> subjectNames.add(s.getName()));
+        }
+
+        for (ExamTopicConfig tc : topicConfigs) {
+            if (tc.getSubjectId() != null) {
+                subjectRepository.findById(tc.getSubjectId())
+                        .ifPresent(s -> subjectNames.add(s.getName()));
+            }
+            if (tc.getChapterId() != null) {
+                chapterRepository.findById(tc.getChapterId())
+                        .ifPresent(c -> chapterNames.add(c.getName()));
+            }
+            if (tc.getTopicId() != null) {
+                topicRepository.findById(tc.getTopicId())
+                        .ifPresent(t -> topicNames.add(t.getName()));
+            }
+        }
+
+        return LiveExamSummaryResponse.builder()
+                .id(exam.getId())
+                .name(exam.getName())
+                .examCode(exam.getExamCode())
+                .examType(exam.getExamType().name())
+                .description(exam.getDescription())
+                .subjectNames(new ArrayList<>(subjectNames))
+                .chapterNames(new ArrayList<>(chapterNames))
+                .topicNames(new ArrayList<>(topicNames))
+                .totalQuestions(exam.getTotalQuestions())
+                .totalMarks(exam.getTotalMarks())
+                .passMarks(exam.getPassMarks())
+                .durationMinutes(exam.getDurationMinutes())
+                .examDate(exam.getExamDate())
+                .startTime(exam.getStartTime())
+                .endTime(exam.getEndTime())
+                .targetLevels(exam.getTargetLevels())
+                .isPremiumOnly(exam.isPremiumOnly())
+                .build();
     }
 
     private boolean isVisibleToUser(Exam exam, String userLevel) {
@@ -87,14 +148,12 @@ public class LiveExamService {
             throw new RuntimeException("Exam window for today has closed.");
         }
 
-        // Already started? -> resume instead of creating new
         Optional<LiveExamSession> existing =
                 liveSessionRepository.findByExamIdAndUserId(examId, userId);
         if (existing.isPresent()) {
             return resumeInternal(existing.get(), exam);
         }
 
-        // Create new session (unique constraint also guards against race)
         String sessionId = UUID.randomUUID().toString();
         LocalDateTime expiresAt = now.plusMinutes(exam.getDurationMinutes());
 
@@ -114,7 +173,6 @@ public class LiveExamService {
         try {
             liveSessionRepository.save(session);
         } catch (org.springframework.dao.DataIntegrityViolationException dup) {
-            // race condition: someone else started same instant -> just resume
             LiveExamSession existingRace = liveSessionRepository
                     .findByExamIdAndUserId(examId, userId)
                     .orElseThrow(() -> new RuntimeException("Could not start or resume exam."));
@@ -125,7 +183,7 @@ public class LiveExamService {
     }
 
     // ============================================
-    // 3. RESUME (called on app reopen within grace period)
+    // 3. RESUME
     // ============================================
     @Transactional
     public LiveExamStartResponse resumeExam(String examId, String userId) {
@@ -146,20 +204,17 @@ public class LiveExamService {
             throw new RuntimeException("This exam attempt is already finished.");
         }
 
-        // Duration সময় শেষ? -> auto submit immediately
         if (now.isAfter(session.getExpiresAt())) {
             autoSubmit(session, exam);
             throw new RuntimeException("Time is up. Your exam has been auto-submitted.");
         }
 
-        // Disconnected obostay a firle asle, grace period check
         if (session.getStatus() == LiveExamSession.Status.DISCONNECTED) {
             long minutesSinceDisconnect = ChronoUnit.MINUTES.between(session.getDisconnectedAt(), now);
             if (minutesSinceDisconnect > GRACE_PERIOD_MINUTES) {
                 autoSubmit(session, exam);
                 throw new RuntimeException("Grace period expired. Your exam has been auto-submitted.");
             }
-            // ফিরে এসেছে সময়ের মধ্যে -> resume
             session.setStatus(LiveExamSession.Status.IN_PROGRESS);
             session.setDisconnectedAt(null);
         }
@@ -171,9 +226,7 @@ public class LiveExamService {
     }
 
     // ============================================
-    // 4. HEARTBEAT — client periodically calls this while active
-    //    (app on-foreground). Missing heartbeats => mark disconnected
-    //    via scheduler.
+    // 4. HEARTBEAT
     // ============================================
     @Transactional
     public void heartbeat(String sessionId, String userId) {
@@ -189,7 +242,6 @@ public class LiveExamService {
         }
     }
 
-    // Client app background/close হলে explicit call (optional but recommended)
     @Transactional
     public void markDisconnected(String sessionId, String userId) {
         LiveExamSession session = getOwnedSession(sessionId, userId);
@@ -231,14 +283,14 @@ public class LiveExamService {
     }
 
     // ============================================
-    // 6. FINISH (manual submit by user)
+    // 6. FINISH
     // ============================================
     @Transactional
     public void finishExam(String sessionId, String userId) {
         LiveExamSession session = getOwnedSession(sessionId, userId);
         if (session.getStatus() == LiveExamSession.Status.SUBMITTED
                 || session.getStatus() == LiveExamSession.Status.AUTO_SUBMITTED) {
-            return; // already done, idempotent
+            return;
         }
         Exam exam = examRepository.findById(session.getExamId())
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
@@ -246,7 +298,7 @@ public class LiveExamService {
     }
 
     // ============================================
-    // 7. AUTO-SUBMIT (grace expiry / duration expiry) — used internally + scheduler
+    // 7. AUTO-SUBMIT
     // ============================================
     @Transactional
     public void autoSubmit(LiveExamSession session, Exam exam) {
@@ -266,7 +318,7 @@ public class LiveExamService {
 
         for (ExamQuestion eq : examQuestions) {
             String selectedOptionId = session.getAnswers().get(eq.getQuestionId());
-            if (selectedOptionId == null) continue; // skipped, no marks, no negative
+            if (selectedOptionId == null) continue;
 
             Option opt = optionRepository.findById(selectedOptionId).orElse(null);
             if (opt != null && opt.isCorrect()) {
@@ -282,7 +334,6 @@ public class LiveExamService {
         session.setSubmittedAt(LocalDateTime.now(BD_ZONE));
         liveSessionRepository.save(session);
 
-        // Attempt history তেও save করি (reuse করলাম existing infra)
         double pct = exam.getTotalMarks().doubleValue() > 0
                 ? obtained.doubleValue() / exam.getTotalMarks().doubleValue() * 100
                 : 0;
@@ -293,7 +344,7 @@ public class LiveExamService {
                 .userId(session.getUserId())
                 .examId(exam.getId())
                 .sessionId(session.getId())
-                .attemptNumber(1) // live exam = always 1 attempt
+                .attemptNumber(1)
                 .obtainedMarks(obtained)
                 .totalMarks(exam.getTotalMarks())
                 .percentage(BigDecimal.valueOf(pct).setScale(2, RoundingMode.HALF_UP))
@@ -307,7 +358,7 @@ public class LiveExamService {
     }
 
     // ============================================
-    // 8. RESULT (time-gated — শুধু exam window শেষ হলে দেখা যাবে)
+    // 8. RESULT
     // ============================================
     @Transactional(readOnly = true)
     public LiveExamResultResponse getResult(String examId, String userId) {
@@ -324,7 +375,6 @@ public class LiveExamService {
 
         if (session.getStatus() != LiveExamSession.Status.SUBMITTED
                 && session.getStatus() != LiveExamSession.Status.AUTO_SUBMITTED) {
-            // safety net: window is over but session never got closed (e.g. scheduler lag)
             autoSubmit(session, exam);
         }
 
@@ -381,7 +431,7 @@ public class LiveExamService {
     }
 
     // ============================================
-    // 9. LEADERBOARD (visible alongside result, so also time-gated)
+    // 9. LEADERBOARD
     // ============================================
     @Transactional(readOnly = true)
     public List<LeaderboardEntryResponse> getLeaderboard(String examId, String userId) {
@@ -413,13 +463,12 @@ public class LiveExamService {
     }
 
     // ============================================
-    // 10. SCHEDULER HOOKS (called from LiveExamScheduler)
+    // 10. SCHEDULER HOOKS
     // ============================================
     @Transactional
     public void processExpiredSessions() {
         LocalDateTime now = LocalDateTime.now(BD_ZONE);
 
-        // A) Grace period পার হয়ে যাওয়া disconnected sessions
         LocalDateTime graceCutoff = now.minusMinutes(GRACE_PERIOD_MINUTES);
         List<LiveExamSession> expiredDisconnected =
                 liveSessionRepository.findExpiredDisconnectedSessions(graceCutoff);
@@ -427,7 +476,6 @@ public class LiveExamService {
             examRepository.findById(s.getExamId()).ifPresent(exam -> autoSubmit(s, exam));
         }
 
-        // B) Duration শেষ কিন্তু এখনো active (safety net)
         List<LiveExamSession> timeExpired =
                 liveSessionRepository.findTimeExpiredActiveSessions(now);
         for (LiveExamSession s : timeExpired) {
