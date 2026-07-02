@@ -32,7 +32,10 @@ public class ExamStudentService {
         List<Exam> publishedExams = examRepository
                 .findByPublishStatusOrderByExamDateAsc(Exam.PublishStatus.PUBLISHED);
 
+        String userLevel = getUserEducationLevel(userId);
+
         return publishedExams.stream()
+                .filter(exam -> isExamVisibleToUser(exam, userLevel))
                 .map(exam -> buildAvailableExamResponse(exam, userId))
                 .collect(Collectors.toList());
     }
@@ -49,7 +52,10 @@ public class ExamStudentService {
                         Exam.ExamType.valueOf(examType)
                 );
 
+        String userLevel = getUserEducationLevel(userId);
+
         return exams.stream()
+                .filter(exam -> isExamVisibleToUser(exam, userLevel))
                 .map(exam -> buildAvailableExamResponse(exam, userId))
                 .collect(Collectors.toList());
     }
@@ -276,6 +282,35 @@ public class ExamStudentService {
             log.warn("Premium check failed for user: {}", userId);
             return false;
         }
+    }
+
+    // User এর education level fetch করো
+    private String getUserEducationLevel(String userId) {
+        try {
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(
+                    "SELECT education_level FROM users WHERE id = ?",
+                    userId
+            );
+            if (!result.isEmpty()) {
+                return (String) result.get(0).get("education_level");
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch education level for user: {}", userId);
+        }
+        return null;
+    }
+
+    // Exam এর targetLevels আর user এর level ম্যাচ করে কিনা
+    private boolean isExamVisibleToUser(Exam exam, String userLevel) {
+        List<String> targetLevels = exam.getTargetLevels();
+
+        if (targetLevels == null || targetLevels.isEmpty() || targetLevels.contains("ALL")) {
+            return true;
+        }
+        if (userLevel == null) {
+            return false; // level না থাকলে শুধু ALL exam দেখবে
+        }
+        return targetLevels.contains(userLevel);
     }
 
     private ExamAttemptHistoryResponse buildAttemptHistoryResponse(
