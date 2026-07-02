@@ -3,7 +3,8 @@ package com.examplatform.modules.question.entity;
 import com.examplatform.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity
@@ -45,8 +46,9 @@ public class BulkUploadJob extends BaseEntity {
     @Builder.Default
     private JobStatus status = JobStatus.UPLOADED;
 
-    @Column(name = "error_report", columnDefinition = "JSONB")
-private String errorReport;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "error_report", columnDefinition = "jsonb")
+    private String errorReport;
 
     @Column(name = "started_at", nullable = false)
     private LocalDateTime startedAt;
