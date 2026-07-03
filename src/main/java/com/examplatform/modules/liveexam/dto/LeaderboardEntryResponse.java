@@ -6,7 +6,8 @@ import lombok.*;
 public class LeaderboardEntryResponse {
     private int rank;
     private String userId;
-    private String userName; // service এ join করে বসাবে
+    private String userName;
+    private String collegeName;
     private double obtainedMarks;
     private double totalMarks;
     private double percentage;
