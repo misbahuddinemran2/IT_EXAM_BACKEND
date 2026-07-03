@@ -390,11 +390,6 @@ public class LiveExamService {
             Question q = questionRepository.findById(eq.getQuestionId()).orElse(null);
             if (q == null) continue;
 
-            List<LiveExamResultResponse.QuestionResultDto> qResults = new ArrayList<>();
-        for (ExamQuestion eq : examQuestions) {
-            Question q = questionRepository.findById(eq.getQuestionId()).orElse(null);
-            if (q == null) continue;
-
             List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(q.getId());
 
             Option correct = options.stream().filter(Option::isCorrect).findFirst().orElse(null);
@@ -404,6 +399,7 @@ public class LiveExamService {
 
             boolean isCorrect = selected != null && selected.isCorrect();
             boolean isSkipped = selectedId == null;
+
             double marksObtained;
             if (isSkipped) {
                 marksObtained = 0.0;
