@@ -11,3 +11,4 @@ public class LiveExamMetaResponse {
     private List<String> chapterNames;
     private List<String> topicNames;
 }
+
