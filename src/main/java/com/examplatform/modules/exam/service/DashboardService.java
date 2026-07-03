@@ -1,16 +1,17 @@
 package com.examplatform.modules.exam.service;
 
 import com.examplatform.modules.exam.dto.DashboardResponse;
+import com.examplatform.modules.exam.entity.ExamAttemptHistory;
 import com.examplatform.modules.exam.entity.ExamSession;
 import com.examplatform.modules.exam.entity.StudyStreak;
 import com.examplatform.modules.exam.entity.UserTopicWeakness;
+import com.examplatform.modules.exam.repository.ExamAttemptHistoryRepository;
 import com.examplatform.modules.exam.repository.ExamSessionRepository;
 import com.examplatform.modules.exam.repository.StudyStreakRepository;
 import com.examplatform.modules.exam.repository.UserTopicWeaknessRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,23 +20,39 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private final ExamSessionRepository examSessionRepository;
+    private final ExamAttemptHistoryRepository attemptHistoryRepository;
     private final StudyStreakRepository studyStreakRepository;
     private final UserTopicWeaknessRepository userTopicWeaknessRepository;
 
     public DashboardResponse getDashboard(String userId, String userName) {
 
-        // সব exam sessions নিন
+        // ===== Regular exam sessions =====
         List<ExamSession> sessions = examSessionRepository
                 .findByUserIdOrderByCreatedAtDesc(userId);
 
-        // Overall stats calculate করুন
-        int totalExams = sessions.size();
-        int totalCorrect = sessions.stream()
-                .mapToInt(ExamSession::getCorrectCount)
-                .sum();
-        int totalQuestions = sessions.stream()
-                .mapToInt(ExamSession::getTotalQuestions)
-                .sum();
+        int regularExams = sessions.size();
+        int regularCorrect = sessions.stream().mapToInt(ExamSession::getCorrectCount).sum();
+        int regularWrong = sessions.stream().mapToInt(ExamSession::getWrongCount).sum();
+        int regularSkipped = sessions.stream().mapToInt(ExamSession::getSkipCount).sum();
+        int regularQuestions = sessions.stream().mapToInt(ExamSession::getTotalQuestions).sum();
+
+        // ===== Live exam attempts (from exam_attempt_history) =====
+        List<ExamAttemptHistory> liveAttempts = attemptHistoryRepository
+                .findByUserIdOrderByCreatedAtDesc(userId);
+
+        int liveExams = liveAttempts.size();
+        int liveCorrect = liveAttempts.stream().mapToInt(ExamAttemptHistory::getCorrectCount).sum();
+        int liveWrong = liveAttempts.stream().mapToInt(ExamAttemptHistory::getWrongCount).sum();
+        int liveSkipped = liveAttempts.stream().mapToInt(ExamAttemptHistory::getSkipCount).sum();
+        int liveQuestions = liveAttempts.stream().mapToInt(ExamAttemptHistory::getTotalQuestions).sum();
+
+        // ===== Combined totals =====
+        int totalExams = regularExams + liveExams;
+        int totalCorrect = regularCorrect + liveCorrect;
+        int totalWrong = regularWrong + liveWrong;
+        int totalSkipped = regularSkipped + liveSkipped;
+        int totalQuestions = regularQuestions + liveQuestions;
+
         double totalPercentage = totalQuestions > 0
                 ? (totalCorrect * 100.0) / totalQuestions
                 : 0;
@@ -48,11 +65,11 @@ public class DashboardService {
                         .longestStreakDays(0)
                         .build());
 
-        // Performance summary
+        // Performance summary (regular exam sessions অনুযায়ী, আগের মতোই)
         DashboardResponse.PerformanceSummary performanceSummary =
                 calculatePerformanceSummary(userId, sessions);
 
-        // Recent exams (last 5)
+        // Recent exams (last 5, শুধু regular sessions থেকে — আগের মতোই)
         List<DashboardResponse.RecentExamData> recentExams = sessions.stream()
                 .limit(5)
                 .map(session -> DashboardResponse.RecentExamData.builder()
@@ -98,6 +115,9 @@ public class DashboardService {
                 .userName(userName)
                 .totalExams(totalExams)
                 .totalCorrect(totalCorrect)
+                .totalWrong(totalWrong)
+                .totalSkipped(totalSkipped)
+                .totalQuestions(totalQuestions)
                 .totalPercentage(roundToTwoDecimals(totalPercentage))
                 .currentStreak(streak.getCurrentStreakDays())
                 .longestStreak(streak.getLongestStreakDays())
