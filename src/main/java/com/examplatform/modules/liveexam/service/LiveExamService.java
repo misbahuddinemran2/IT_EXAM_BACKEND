@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,7 +42,7 @@ public class LiveExamService {
 
     private static final int GRACE_PERIOD_MINUTES = 5;
     private static final ZoneId BD_ZONE = ZoneId.of("Asia/Dhaka");
-
+    private final JdbcTemplate jdbcTemplate;
     private final ExamRepository examRepository;
     private final ExamQuestionRepository examQuestionRepository;
     private final QuestionRepository questionRepository;
@@ -468,9 +469,29 @@ public class LiveExamService {
             double pct = exam.getTotalMarks().doubleValue() > 0
                     ? s.getObtainedMarks().doubleValue() / exam.getTotalMarks().doubleValue() * 100
                     : 0;
+
+            String userName = "";
+            String collegeName = "";
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                        "SELECT full_name, full_name_bn, institution_name FROM users WHERE id = ?",
+                        s.getUserId());
+                if (!rows.isEmpty()) {
+                    Map<String, Object> row = rows.get(0);
+                    String fullNameBn = (String) row.get("full_name_bn");
+                    String fullName = (String) row.get("full_name");
+                    userName = (fullNameBn != null && !fullNameBn.isBlank()) ? fullNameBn : fullName;
+                    collegeName = (String) row.get("institution_name");
+                }
+            } catch (Exception e) {
+                log.warn("Could not fetch user info for leaderboard: {}", s.getUserId());
+            }
+
             result.add(LeaderboardEntryResponse.builder()
                     .rank(rank++)
                     .userId(s.getUserId())
+                    .userName(userName)
+                    .collegeName(collegeName)
                     .obtainedMarks(s.getObtainedMarks().doubleValue())
                     .totalMarks(exam.getTotalMarks().doubleValue())
                     .percentage(Math.round(pct * 100.0) / 100.0)
