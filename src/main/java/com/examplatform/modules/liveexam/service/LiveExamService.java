@@ -321,15 +321,24 @@ public class LiveExamService {
         BigDecimal obtained = BigDecimal.ZERO;
         BigDecimal negativePerWrong = exam.getNegativeMarking();
 
+        int correctCount = 0;
+        int wrongCount = 0;
+        int skipCount = 0;
+
         for (ExamQuestion eq : examQuestions) {
             String selectedOptionId = session.getAnswers().get(eq.getQuestionId());
-            if (selectedOptionId == null) continue;
+            if (selectedOptionId == null) {
+                skipCount++;
+                continue;
+            }
 
             Option opt = optionRepository.findById(selectedOptionId).orElse(null);
             if (opt != null && opt.isCorrect()) {
                 obtained = obtained.add(eq.getMarks());
+                correctCount++;
             } else {
                 obtained = obtained.subtract(negativePerWrong);
+                wrongCount++;
             }
         }
         if (obtained.compareTo(BigDecimal.ZERO) < 0) obtained = BigDecimal.ZERO;
@@ -354,12 +363,17 @@ public class LiveExamService {
                 .totalMarks(exam.getTotalMarks())
                 .percentage(BigDecimal.valueOf(pct).setScale(2, RoundingMode.HALF_UP))
                 .isPassed(passed)
+                .totalQuestions(examQuestions.size())
+                .correctCount(correctCount)
+                .wrongCount(wrongCount)
+                .skipCount(skipCount)
                 .submittedAt(session.getSubmittedAt())
                 .build();
         attemptHistoryRepository.save(history);
 
-        log.info("Live exam closed: session={}, user={}, exam={}, status={}, marks={}",
-                session.getId(), session.getUserId(), exam.getId(), finalStatus, obtained);
+        log.info("Live exam closed: session={}, user={}, exam={}, status={}, marks={}, correct={}, wrong={}, skip={}",
+                session.getId(), session.getUserId(), exam.getId(), finalStatus, obtained,
+                correctCount, wrongCount, skipCount);
     }
 
     // ============================================
