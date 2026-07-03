@@ -12,6 +12,9 @@ public class DashboardResponse {
     private String userName;
     private int totalExams;
     private int totalCorrect;
+    private int totalWrong;
+    private int totalSkipped;
+    private int totalQuestions;
     private double totalPercentage;
     private int currentStreak;
     private int longestStreak;
