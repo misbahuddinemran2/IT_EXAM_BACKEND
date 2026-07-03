@@ -127,6 +127,17 @@ public class LiveExamController {
         }
     }
 
+    // GET /api/v1/live-exams/{examId}/meta  — subject/chapter/topic, no date restriction
+    @GetMapping("/{examId}/meta")
+    public ResponseEntity<?> getMeta(@PathVariable String examId) {
+        try {
+            LiveExamMetaResponse meta = liveExamService.getExamMeta(examId);
+            return ResponseEntity.ok(Map.of("success", true, "data", meta));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
+
     private String getUserEducationLevel(String userId) {
         try {
             List<Map<String, Object>> result = jdbcTemplate.queryForList(
