@@ -390,6 +390,11 @@ public class LiveExamService {
             Question q = questionRepository.findById(eq.getQuestionId()).orElse(null);
             if (q == null) continue;
 
+            List<LiveExamResultResponse.QuestionResultDto> qResults = new ArrayList<>();
+        for (ExamQuestion eq : examQuestions) {
+            Question q = questionRepository.findById(eq.getQuestionId()).orElse(null);
+            if (q == null) continue;
+
             List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(q.getId());
 
             Option correct = options.stream().filter(Option::isCorrect).findFirst().orElse(null);
@@ -397,16 +402,29 @@ public class LiveExamService {
             Option selected = selectedId == null ? null : options.stream()
                     .filter(o -> o.getId().equals(selectedId)).findFirst().orElse(null);
 
+            boolean isCorrect = selected != null && selected.isCorrect();
+            boolean isSkipped = selectedId == null;
+            double marksObtained;
+            if (isSkipped) {
+                marksObtained = 0.0;
+            } else if (isCorrect) {
+                marksObtained = eq.getMarks().doubleValue();
+            } else {
+                marksObtained = -exam.getNegativeMarking().doubleValue();
+            }
+
             qResults.add(LiveExamResultResponse.QuestionResultDto.builder()
                     .questionId(q.getId())
                     .questionText(q.getQuestionText())
                     .userSelectedOptionId(selectedId)
                     .userSelectedOptionText(selected == null ? null : selected.getOptionText())
-                    .isCorrect(selected != null && selected.isCorrect())
-                    .isSkipped(selectedId == null)
+                    .isCorrect(isCorrect)
+                    .isSkipped(isSkipped)
                     .correctOptionId(correct == null ? null : correct.getId())
                     .correctOptionText(correct == null ? null : correct.getOptionText())
                     .explanation(correct == null ? null : correct.getExplanation())
+                    .marksObtained(marksObtained)
+                    .maxMarks(eq.getMarks().doubleValue())
                     .build());
         }
 
