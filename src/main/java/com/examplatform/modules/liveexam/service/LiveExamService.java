@@ -479,7 +479,50 @@ public class LiveExamService {
         }
         return result;
     }
+    
+// ============================================
+    // 9b. EXAM META (subject/chapter/topic — no date restriction)
+    // ============================================
+    @Transactional(readOnly = true)
+    public LiveExamMetaResponse getExamMeta(String examId) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new RuntimeException("Exam not found"));
 
+        List<ExamSubjectConfig> subjectConfigs = subjectConfigRepository.findByExamId(exam.getId());
+        List<ExamTopicConfig> topicConfigs = topicConfigRepository.findByExamId(exam.getId());
+
+        Set<String> subjectNames = new LinkedHashSet<>();
+        Set<String> chapterNames = new LinkedHashSet<>();
+        Set<String> topicNames = new LinkedHashSet<>();
+
+        for (ExamSubjectConfig sc : subjectConfigs) {
+            subjectRepository.findById(sc.getSubjectId())
+                    .ifPresent(s -> subjectNames.add(s.getName()));
+        }
+
+        for (ExamTopicConfig tc : topicConfigs) {
+            if (tc.getSubjectId() != null) {
+                subjectRepository.findById(tc.getSubjectId())
+                        .ifPresent(s -> subjectNames.add(s.getName()));
+            }
+            if (tc.getChapterId() != null) {
+                chapterRepository.findById(tc.getChapterId())
+                        .ifPresent(c -> chapterNames.add(c.getName()));
+            }
+            if (tc.getTopicId() != null) {
+                topicRepository.findById(tc.getTopicId())
+                        .ifPresent(t -> topicNames.add(t.getName()));
+            }
+        }
+
+        return LiveExamMetaResponse.builder()
+                .examId(exam.getId())
+                .examName(exam.getName())
+                .subjectNames(new ArrayList<>(subjectNames))
+                .chapterNames(new ArrayList<>(chapterNames))
+                .topicNames(new ArrayList<>(topicNames))
+                .build();
+    }
     // ============================================
     // 10. SCHEDULER HOOKS
     // ============================================
