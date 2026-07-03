@@ -47,6 +47,22 @@ public class ExamAttemptHistory {
     @Builder.Default
     private boolean isPassed = false;
 
+    
+   @Column(name = "total_questions", nullable = false)
+    @Builder.Default
+    private int totalQuestions = 0;
+
+    @Column(name = "correct_count", nullable = false)
+    @Builder.Default
+    private int correctCount = 0;
+
+    @Column(name = "wrong_count", nullable = false)
+    @Builder.Default
+    private int wrongCount = 0;
+
+    @Column(name = "skip_count", nullable = false)
+    @Builder.Default
+    private int skipCount = 0;
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
