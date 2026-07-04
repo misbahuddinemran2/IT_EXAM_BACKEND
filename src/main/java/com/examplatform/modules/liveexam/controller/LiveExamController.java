@@ -148,4 +148,33 @@ public class LiveExamController {
         }
         return null;
     }
+
+    // GET /api/v1/live-exams/finished — window পার হওয়া exam list
+    @GetMapping("/finished")
+    public ResponseEntity<?> getFinishedExams(@RequestHeader("X-User-Id") String userId) {
+        try {
+            String userLevel = getUserEducationLevel(userId);
+            List<LiveExamSummaryResponse> data = liveExamService.getFinishedExams(userLevel, userId);
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception ex) {
+            log.error("Error fetching finished live exams", ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
+
+    // POST /api/v1/live-exams/{examId}/practice — stateless practice scoring
+    @PostMapping("/{examId}/practice")
+    public ResponseEntity<?> practiceSubmit(
+            @PathVariable String examId,
+            @RequestBody PracticeSubmitRequest request) {
+        try {
+            PracticeResultResponse result = liveExamService.practiceSubmit(examId, request.getAnswers());
+            return ResponseEntity.ok(Map.of("success", true, "data", result));
+        } catch (Exception ex) {
+            log.error("Error in practice submit for exam {}", examId, ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
 }
+
+
