@@ -55,6 +55,30 @@ public class LiveExamService {
     private final ChapterRepository chapterRepository;
     private final TopicRepository topicRepository;
 
+@Transactional(readOnly = true)
+public LiveExamStartResponse getPracticeQuestions(String examId) {
+    Exam exam = examRepository.findById(examId)
+            .orElseThrow(() -> new RuntimeException("Exam not found"));
+
+    LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
+    if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
+        throw new RuntimeException("This exam window hasn't closed yet.");
+    }
+
+    // dummy session বানিয়ে existing buildStartResponse() reuse করছি (answers ফাঁকা)
+    LiveExamSession dummy = LiveExamSession.builder()
+            .id("practice")
+            .examId(examId)
+            .userId("practice")
+            .answers(new HashMap<>())
+            .markedForReview(new ArrayList<>())
+            .startedAt(LocalDateTime.now(BD_ZONE))
+            .expiresAt(LocalDateTime.now(BD_ZONE).plusHours(24))
+            .build();
+
+    return buildStartResponse(dummy, exam);
+}
+    
     // ============================================
     // 1. VISIBILITY — আজকের published live exams
     // ============================================
