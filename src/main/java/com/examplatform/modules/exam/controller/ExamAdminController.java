@@ -21,6 +21,26 @@ public class ExamAdminController {
 
     private final ExamAdminService examAdminService;
 
+
+ @PostMapping("/{examId}/extend")
+public ResponseEntity<?> extendExam(
+        @PathVariable String examId,
+        @RequestBody Map<String, String> body) {
+    try {
+        java.time.LocalDate newExamDate = java.time.LocalDate.parse(body.get("examDate"));
+        java.time.LocalTime newStartTime = java.time.LocalTime.parse(body.get("startTime"));
+        java.time.LocalTime newEndTime = java.time.LocalTime.parse(body.get("endTime"));
+        ExamResponse response = examAdminService.extendExam(examId, newExamDate, newStartTime, newEndTime);
+        return ResponseEntity.ok(
+                Map.of("success", true, "message", "Exam extended successfully", "data", response)
+        );
+    } catch (Exception e) {
+        log.error("Error extending exam {}: {}", examId, e.getMessage());
+        return ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", e.getMessage())
+        );
+    }
+}
     // ============================================
     // CREATE EXAM
     // POST /api/v1/admin/exams/create
