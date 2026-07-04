@@ -116,7 +116,8 @@ public class LiveExamService {
                 .endTime(exam.getEndTime())
                 .targetLevels(exam.getTargetLevels())
                 .isPremiumOnly(exam.isPremiumOnly())
-                .attemptStatus(liveSessionRepository.findByExamIdAndUserId(exam.getId(), userId)
+                .attemptStatus(liveSessionRepository
+                        .findByExamIdAndUserIdAndCycleNumber(exam.getId(), userId, exam.getCycleNumber())
                         .map(s -> s.getStatus().name())
                         .orElse("NOT_STARTED"))
                 .build();
@@ -148,15 +149,22 @@ public class LiveExamService {
         }
 
         LocalDateTime now = LocalDateTime.now(BD_ZONE);
-        LocalDateTime windowEnd = LocalDateTime.of(today, LocalTime.of(23, 59, 59));
+        LocalDateTime windowEnd = LocalDateTime.of(today, exam.getEndTime());
         if (now.isAfter(windowEnd)) {
             throw new RuntimeException("Exam window for today has closed.");
         }
 
+        int currentCycle = exam.getCycleNumber();
+
         Optional<LiveExamSession> existing =
-                liveSessionRepository.findByExamIdAndUserId(examId, userId);
+                liveSessionRepository.findByExamIdAndUserIdAndCycleNumber(examId, userId, currentCycle);
         if (existing.isPresent()) {
             return resumeInternal(existing.get(), exam);
+        }
+
+        // এই ইউজার এই exam-এ আগে কোনো cycle-এ attempt করেছে কিনা চেক
+        if (liveSessionRepository.existsByExamIdAndUserId(examId, userId)) {
+            throw new RuntimeException("You have already attempted this exam. Second attempt is not allowed.");
         }
 
         String sessionId = UUID.randomUUID().toString();
@@ -166,6 +174,7 @@ public class LiveExamService {
                 .id(sessionId)
                 .examId(examId)
                 .userId(userId)
+                .cycleNumber(currentCycle)
                 .status(LiveExamSession.Status.IN_PROGRESS)
                 .startedAt(now)
                 .expiresAt(expiresAt)
@@ -179,7 +188,7 @@ public class LiveExamService {
             liveSessionRepository.save(session);
         } catch (org.springframework.dao.DataIntegrityViolationException dup) {
             LiveExamSession existingRace = liveSessionRepository
-                    .findByExamIdAndUserId(examId, userId)
+                    .findByExamIdAndUserIdAndCycleNumber(examId, userId, currentCycle)
                     .orElseThrow(() -> new RuntimeException("Could not start or resume exam."));
             return resumeInternal(existingRace, exam);
         }
@@ -192,11 +201,12 @@ public class LiveExamService {
     // ============================================
     @Transactional
     public LiveExamStartResponse resumeExam(String examId, String userId) {
-        LiveExamSession session = liveSessionRepository.findByExamIdAndUserId(examId, userId)
-                .orElseThrow(() -> new RuntimeException("No active session found. Please start the exam."));
-
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
+
+        LiveExamSession session = liveSessionRepository
+                .findByExamIdAndUserIdAndCycleNumber(examId, userId, exam.getCycleNumber())
+                .orElseThrow(() -> new RuntimeException("No active session found. Please start the exam."));
 
         return resumeInternal(session, exam);
     }
@@ -358,7 +368,7 @@ public class LiveExamService {
                 .userId(session.getUserId())
                 .examId(exam.getId())
                 .sessionId(session.getId())
-                .attemptNumber(1)
+                .attemptNumber(session.getCycleNumber())
                 .obtainedMarks(obtained)
                 .totalMarks(exam.getTotalMarks())
                 .percentage(BigDecimal.valueOf(pct).setScale(2, RoundingMode.HALF_UP))
@@ -371,8 +381,8 @@ public class LiveExamService {
                 .build();
         attemptHistoryRepository.save(history);
 
-        log.info("Live exam closed: session={}, user={}, exam={}, status={}, marks={}, correct={}, wrong={}, skip={}",
-                session.getId(), session.getUserId(), exam.getId(), finalStatus, obtained,
+        log.info("Live exam closed: session={}, user={}, exam={}, cycle={}, status={}, marks={}, correct={}, wrong={}, skip={}",
+                session.getId(), session.getUserId(), exam.getId(), session.getCycleNumber(), finalStatus, obtained,
                 correctCount, wrongCount, skipCount);
     }
 
@@ -384,12 +394,13 @@ public class LiveExamService {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
-        LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), LocalTime.of(23, 59, 59));
+        LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
         if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
-            throw new RuntimeException("Result will be available after the exam window closes at 11:59 PM.");
+            throw new RuntimeException("Result will be available after the exam window closes.");
         }
 
-        LiveExamSession session = liveSessionRepository.findByExamIdAndUserId(examId, userId)
+        LiveExamSession session = liveSessionRepository
+                .findByExamIdAndUserIdAndCycleNumber(examId, userId, exam.getCycleNumber())
                 .orElseThrow(() -> new RuntimeException("No attempt found for this exam."));
 
         if (session.getStatus() != LiveExamSession.Status.SUBMITTED
@@ -471,9 +482,9 @@ public class LiveExamService {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
-        LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), LocalTime.of(23, 59, 59));
+        LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
         if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
-            throw new RuntimeException("Leaderboard will be available after the exam window closes at 11:59 PM.");
+            throw new RuntimeException("Leaderboard will be available after the exam window closes.");
         }
 
         List<LiveExamSession> sessions = liveSessionRepository.findLeaderboardByExamId(examId);
