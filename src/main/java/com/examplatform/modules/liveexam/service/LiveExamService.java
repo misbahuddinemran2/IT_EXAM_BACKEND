@@ -569,6 +569,119 @@ public class LiveExamService {
                 .topicNames(new ArrayList<>(topicNames))
                 .build();
     }
+
+    // ============================================
+    // 9c. FINISHED EXAMS — window পার হয়ে যাওয়া exam list
+    // ============================================
+    @Transactional(readOnly = true)
+    public List<LiveExamSummaryResponse> getFinishedExams(String userLevel, String userId) {
+        LocalDateTime now = LocalDateTime.now(BD_ZONE);
+        List<Exam> exams = examRepository.findByPublishStatus(Exam.PublishStatus.PUBLISHED);
+
+        return exams.stream()
+                .filter(e -> isVisibleToUser(e, userLevel))
+                .filter(e -> LocalDateTime.of(e.getExamDate(), e.getEndTime()).isBefore(now))
+                .map(e -> buildLiveExamSummary(e, userId))
+                .collect(Collectors.toList());
+    }
+
+    // ============================================
+    // 9d. PRACTICE MODE — stateless scoring, কোনো DB সেভ নেই
+    // ============================================
+    @Transactional(readOnly = true)
+    public PracticeResultResponse practiceSubmit(String examId, Map<String, String> answers) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new RuntimeException("Exam not found"));
+
+        LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
+        if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
+            throw new RuntimeException("This exam window hasn't closed yet. Practice mode is only for finished exams.");
+        }
+
+        List<ExamQuestion> examQuestions =
+                examQuestionRepository.findByExamIdOrderByOrderNumberAsc(exam.getId());
+
+        BigDecimal obtained = BigDecimal.ZERO;
+        BigDecimal negativePerWrong = exam.getNegativeMarking();
+        int correctCount = 0, wrongCount = 0, skipCount = 0;
+
+        List<LiveExamResultResponse.QuestionResultDto> qResults = new ArrayList<>();
+
+        for (ExamQuestion eq : examQuestions) {
+            Question q = questionRepository.findById(eq.getQuestionId()).orElse(null);
+            if (q == null) continue;
+
+            List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(q.getId());
+            Option correct = options.stream().filter(Option::isCorrect).findFirst().orElse(null);
+
+            String selectedId = answers == null ? null : answers.get(eq.getQuestionId());
+            Option selected = selectedId == null ? null : options.stream()
+                    .filter(o -> o.getId().equals(selectedId)).findFirst().orElse(null);
+
+            boolean isCorrect = selected != null && selected.isCorrect();
+            boolean isSkipped = selectedId == null;
+
+            double marksObtained;
+            if (isSkipped) {
+                skipCount++;
+                marksObtained = 0.0;
+            } else if (isCorrect) {
+                correctCount++;
+                obtained = obtained.add(eq.getMarks());
+                marksObtained = eq.getMarks().doubleValue();
+            } else {
+                wrongCount++;
+                obtained = obtained.subtract(negativePerWrong);
+                marksObtained = -negativePerWrong.doubleValue();
+            }
+
+            qResults.add(LiveExamResultResponse.QuestionResultDto.builder()
+                    .questionId(q.getId())
+                    .questionText(q.getQuestionText())
+                    .userSelectedOptionId(selectedId)
+                    .userSelectedOptionText(selected == null ? null : selected.getOptionText())
+                    .isCorrect(isCorrect)
+                    .isSkipped(isSkipped)
+                    .correctOptionId(correct == null ? null : correct.getId())
+                    .correctOptionText(correct == null ? null : correct.getOptionText())
+                    .explanation(correct == null ? null : correct.getExplanation())
+                    .marksObtained(marksObtained)
+                    .maxMarks(eq.getMarks().doubleValue())
+                    .build());
+        }
+        if (obtained.compareTo(BigDecimal.ZERO) < 0) obtained = BigDecimal.ZERO;
+
+        // Real leaderboard-এর সাথে on-the-fly compare করে hypothetical rank
+        List<LiveExamSession> leaderboard = liveSessionRepository.findLeaderboardByExamId(examId);
+        int rank = 1;
+        boolean placed = false;
+        for (LiveExamSession s : leaderboard) {
+            if (obtained.compareTo(s.getObtainedMarks()) > 0) {
+                placed = true;
+                break;
+            }
+            rank++;
+        }
+        Integer hypotheticalRank = rank; // real স্কোরগুলোর মধ্যে এই score-টা কততম হতো
+
+        double pct = exam.getTotalMarks().doubleValue() > 0
+                ? obtained.doubleValue() / exam.getTotalMarks().doubleValue() * 100
+                : 0;
+
+        return PracticeResultResponse.builder()
+                .examId(exam.getId())
+                .examName(exam.getName())
+                .obtainedMarks(obtained.doubleValue())
+                .totalMarks(exam.getTotalMarks().doubleValue())
+                .percentage(Math.round(pct * 100.0) / 100.0)
+                .correctCount(correctCount)
+                .wrongCount(wrongCount)
+                .skipCount(skipCount)
+                .hypotheticalRank(hypotheticalRank)
+                .totalParticipants(leaderboard.size())
+                .questions(qResults)
+                .build();
+    }
     // ============================================
     // 10. SCHEDULER HOOKS
     // ============================================
