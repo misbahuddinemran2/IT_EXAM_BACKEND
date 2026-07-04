@@ -67,6 +67,9 @@ public class LiveExamSession {
     @Builder.Default
     private BigDecimal totalMarks = BigDecimal.ZERO;
 
+    @Column(name = "cycle_number", nullable = false)
+@Builder.Default
+private int cycleNumber = 1;
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
