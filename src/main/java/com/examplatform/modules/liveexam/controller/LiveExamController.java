@@ -31,6 +31,18 @@ public class LiveExamController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
         }
     }
+    // GET /api/v1/live-exams/category/{category}  — SUBJECT_WISE / CHAPTER_WISE / TOPIC_WISE (live+finished)
+    @GetMapping("/category/{category}")
+    public ResponseEntity<?> getExamsByCategory(@PathVariable String category, @RequestHeader("X-User-Id") String userId) {
+        try {
+            String userLevel = getUserEducationLevel(userId);
+            List<LiveExamSummaryResponse> data = liveExamService.getExamsByCategory(category, userLevel, userId);
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception ex) {
+            log.error("Error fetching exams by category {}", category, ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
 
     // POST /api/v1/live-exams/{examId}/start
     @PostMapping("/{examId}/start")
