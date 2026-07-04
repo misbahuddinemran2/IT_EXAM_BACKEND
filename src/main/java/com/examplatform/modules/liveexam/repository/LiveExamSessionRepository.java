@@ -15,8 +15,6 @@ public interface LiveExamSessionRepository extends JpaRepository<LiveExamSession
 
     Optional<LiveExamSession> findByExamIdAndUserId(String examId, String userId);
 
-    boolean existsByExamIdAndUserId(String examId, String userId);
-
     // Grace period পার হয়ে যাওয়া disconnected sessions (scheduler এর জন্য)
     @Query("SELECT s FROM LiveExamSession s WHERE s.status = 'DISCONNECTED' " +
             "AND s.disconnectedAt <= :cutoff")
