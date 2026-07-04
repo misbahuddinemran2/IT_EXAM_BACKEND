@@ -29,6 +29,22 @@ public class ExamAdminService {
     private final ExamAttemptHistoryRepository attemptHistoryRepository;
     private final JdbcTemplate jdbcTemplate;
 
+@Transactional
+public ExamResponse extendExam(String examId, LocalDate newExamDate,
+                                LocalTime newStartTime, LocalTime newEndTime) {
+    Exam exam = findExamById(examId);
+
+    exam.setExamDate(newExamDate);
+    exam.setStartTime(newStartTime);
+    exam.setEndTime(newEndTime);
+    exam.setCycleNumber(exam.getCycleNumber() + 1);
+    exam.setPublishStatus(Exam.PublishStatus.PUBLISHED);
+
+    Exam extended = examRepository.save(exam);
+    log.info("Exam extended: {} -> cycle {}", examId, extended.getCycleNumber());
+    return buildExamResponse(extended);
+}
+    
     // ============================================
     // CREATE EXAM
     // ============================================
@@ -867,4 +883,7 @@ public class ExamAdminService {
                 .orderNumber(eq.getOrderNumber())
                 .build();
     }
+
+
+    
 }
