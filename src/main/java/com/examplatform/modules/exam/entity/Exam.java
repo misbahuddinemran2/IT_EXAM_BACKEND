@@ -16,8 +16,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructoruSettings
-    
+ @AllArgsConstructor
 public class Exam {
     @Id
     @Column(name = "id", length = 36)
