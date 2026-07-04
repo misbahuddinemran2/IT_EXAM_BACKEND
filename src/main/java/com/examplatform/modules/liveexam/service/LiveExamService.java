@@ -94,6 +94,43 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
                 .collect(Collectors.toList());
     }
 
+    // ============================================
+    // 1b. CATEGORY-WISE EXAMS (SUBJECT / CHAPTER / TOPIC) — live + finished উভয়ই
+    // ============================================
+    @Transactional(readOnly = true)
+    public List<LiveExamSummaryResponse> getExamsByCategory(String category, String userLevel, String userId) {
+        List<Exam> exams = examRepository.findByPublishStatus(Exam.PublishStatus.PUBLISHED);
+        LocalDateTime now = LocalDateTime.now(BD_ZONE);
+
+        return exams.stream()
+                .filter(e -> isVisibleToUser(e, userLevel))
+                .filter(e -> category.equals(determineCategory(e.getId())))
+                .map(e -> {
+                    LiveExamSummaryResponse r = buildLiveExamSummary(e, userId);
+                    boolean ended = LocalDateTime.of(e.getExamDate(), e.getEndTime()).isBefore(now);
+                    r.setWindowEnded(ended);
+                    return r;
+                })
+                .collect(Collectors.toList());
+    }
+
+    // admin কী কম্বিনেশন সিলেক্ট করেছে তা দেখে ক্যাটাগরি বের করে
+    private String determineCategory(String examId) {
+        List<ExamTopicConfig> topicConfigs = topicConfigRepository.findByExamId(examId);
+        boolean hasTopic = topicConfigs.stream().anyMatch(tc -> tc.getTopicId() != null);
+        if (hasTopic) return "TOPIC_WISE";
+
+        boolean hasChapter = topicConfigs.stream().anyMatch(tc -> tc.getChapterId() != null);
+        if (hasChapter) return "CHAPTER_WISE";
+
+        List<ExamSubjectConfig> subjectConfigs = subjectConfigRepository.findByExamId(examId);
+        boolean hasSubjectOnly = !subjectConfigs.isEmpty()
+                || topicConfigs.stream().anyMatch(tc -> tc.getSubjectId() != null);
+        if (hasSubjectOnly) return "SUBJECT_WISE";
+
+        return "OTHER";
+    }
+
     private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) { 
         List<ExamSubjectConfig> subjectConfigs = subjectConfigRepository.findByExamId(exam.getId());
         List<ExamTopicConfig> topicConfigs = topicConfigRepository.findByExamId(exam.getId());
@@ -154,6 +191,8 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
         if (userLevel == null) return false;
         return levels.contains(userLevel);
     }
+
+    
 
     // ============================================
     // 2. START EXAM
