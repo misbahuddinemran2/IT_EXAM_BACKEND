@@ -316,20 +316,35 @@ public class ExamStudentService {
     private ExamAttemptHistoryResponse buildAttemptHistoryResponse(
             ExamAttemptHistory history) {
 
-        // Exam name fetch
+        // Exam name + exam_date fetch
         String examName = "";
         String examType = "";
+        LocalDate examDate = null;
         try {
             List<Map<String, Object>> result = jdbcTemplate.queryForList(
-                    "SELECT name, exam_type FROM exams WHERE id = ?",
+                    "SELECT name, exam_type, exam_date FROM exams WHERE id = ?",
                     history.getExamId()
             );
             if (!result.isEmpty()) {
                 examName = (String) result.get(0).get("name");
                 examType = (String) result.get(0).get("exam_type");
+                Object dateObj = result.get(0).get("exam_date");
+                if (dateObj != null) {
+                    examDate = (dateObj instanceof java.sql.Date)
+                            ? ((java.sql.Date) dateObj).toLocalDate()
+                            : LocalDate.parse(dateObj.toString());
+                }
             }
         } catch (Exception e) {
             log.warn("Could not fetch exam name: {}", history.getExamId());
+        }
+
+        // Result শুধু examDate এর রাত ১১:৫৯টার পর publish হবে (Live Exam এর নিয়ম অনুযায়ী)
+        // examDate null থাকলে (regular/practice exam) সবসময় published ধরে নেওয়া হবে
+        boolean resultPublished = true;
+        if (examDate != null) {
+            LocalDateTime windowEnd = LocalDateTime.of(examDate, LocalTime.of(23, 59, 59));
+            resultPublished = LocalDateTime.now().isAfter(windowEnd);
         }
 
         return ExamAttemptHistoryResponse.builder()
@@ -339,10 +354,11 @@ public class ExamStudentService {
                 .examType(examType)
                 .sessionId(history.getSessionId())
                 .attemptNumber(history.getAttemptNumber())
-                .obtainedMarks(history.getObtainedMarks().doubleValue())
+                .obtainedMarks(resultPublished ? history.getObtainedMarks().doubleValue() : 0)
                 .totalMarks(history.getTotalMarks().doubleValue())
-                .percentage(history.getPercentage().doubleValue())
-                .isPassed(history.isPassed())
+                .percentage(resultPublished ? history.getPercentage().doubleValue() : 0)
+                .isPassed(resultPublished && history.isPassed())
+                .resultPublished(resultPublished)
                 .submittedAt(history.getSubmittedAt())
                 .createdAt(history.getCreatedAt())
                 .build();
