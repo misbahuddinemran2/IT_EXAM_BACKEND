@@ -10,11 +10,17 @@ import com.examplatform.modules.exam.repository.ExamSessionRepository;
 import com.examplatform.modules.exam.repository.StudyStreakRepository;
 import com.examplatform.modules.exam.repository.UserTopicWeaknessRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
@@ -23,6 +29,7 @@ public class DashboardService {
     private final ExamAttemptHistoryRepository attemptHistoryRepository;
     private final StudyStreakRepository studyStreakRepository;
     private final UserTopicWeaknessRepository userTopicWeaknessRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public DashboardResponse getDashboard(String userId, String userName) {
 
@@ -41,10 +48,23 @@ public class DashboardService {
                 .findByUserIdOrderByCreatedAtDesc(userId);
 
         int liveExams = liveAttempts.size();
-        int liveCorrect = liveAttempts.stream().mapToInt(ExamAttemptHistory::getCorrectCount).sum();
-        int liveWrong = liveAttempts.stream().mapToInt(ExamAttemptHistory::getWrongCount).sum();
-        int liveSkipped = liveAttempts.stream().mapToInt(ExamAttemptHistory::getSkipCount).sum();
-        int liveQuestions = liveAttempts.stream().mapToInt(ExamAttemptHistory::getTotalQuestions).sum();
+        int liveCorrect = 0;
+        int liveWrong = 0;
+        int liveSkipped = 0;
+        int liveQuestions = 0;
+
+        for (ExamAttemptHistory attempt : liveAttempts) {
+            boolean published = isResultPublished(attempt.getExamId());
+
+            liveQuestions += attempt.getTotalQuestions();
+            liveSkipped += attempt.getSkipCount();
+
+            // correct/wrong শুধু result publish হওয়ার পরেই যোগ হবে
+            if (published) {
+                liveCorrect += attempt.getCorrectCount();
+                liveWrong += attempt.getWrongCount();
+            }
+        }
 
         // ===== Combined totals =====
         int totalExams = regularExams + liveExams;
@@ -129,6 +149,28 @@ public class DashboardService {
                 .build();
     }
 
+    // Live exam এর exam_date চেক করে result publish হয়েছে কিনা বের করে
+    // (রাত ১১:৫৯টার পর publish হয় — LiveExamService/ExamStudentService এর একই নিয়ম)
+    private boolean isResultPublished(String examId) {
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT exam_date FROM exams WHERE id = ?", examId);
+            if (rows.isEmpty() || rows.get(0).get("exam_date") == null) {
+                return true; // exam_date না থাকলে regular/practice ধরনের, সবসময় published
+            }
+            Object dateObj = rows.get(0).get("exam_date");
+            LocalDate examDate = (dateObj instanceof java.sql.Date)
+                    ? ((java.sql.Date) dateObj).toLocalDate()
+                    : LocalDate.parse(dateObj.toString());
+
+            LocalDateTime windowEnd = LocalDateTime.of(examDate, LocalTime.of(23, 59, 59));
+            return LocalDateTime.now().isAfter(windowEnd);
+        } catch (Exception e) {
+            log.warn("Could not check result publish status for exam: {}", examId);
+            return true; // fail-safe: error হলে published ধরে নেওয়া (dashboard যেন ভেঙে না যায়)
+        }
+    }
+
     private DashboardResponse.PerformanceSummary calculatePerformanceSummary(
             String userId, List<ExamSession> allSessions) {
 
@@ -175,12 +217,10 @@ public class DashboardService {
     }
 
     private int calculateRankPosition(String userId, double totalPercentage) {
-        // এটি leaderboard থেকে আসবে
         return 1;
     }
 
     private int calculateTotalUsers() {
-        // User count থেকে আসবে
         return 100;
     }
 
