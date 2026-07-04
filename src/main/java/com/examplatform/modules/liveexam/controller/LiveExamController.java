@@ -175,6 +175,16 @@ public class LiveExamController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
         }
     }
+
+    @GetMapping("/{examId}/practice-questions")
+public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
+    try {
+        LiveExamStartResponse resp = liveExamService.getPracticeQuestions(examId);
+        return ResponseEntity.ok(Map.of("success", true, "data", resp));
+    } catch (Exception ex) {
+        return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+    }
+}
 }
 
 
