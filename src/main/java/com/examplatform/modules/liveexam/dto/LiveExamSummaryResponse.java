@@ -36,5 +36,6 @@ public class LiveExamSummaryResponse {
     private boolean isPremiumOnly;
     
     private String attemptStatus;
+    private boolean windowEnded;
     
 }
