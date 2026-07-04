@@ -39,7 +39,8 @@ public interface ExamRepository extends JpaRepository<Exam, String> {
             Exam.PublishStatus status,
             Exam.ExamType examType
     );
-
+    
+List<Exam> findByPublishStatus(Exam.PublishStatus publishStatus);
     // Admin stats
     long countByPublishStatus(Exam.PublishStatus status);
 
