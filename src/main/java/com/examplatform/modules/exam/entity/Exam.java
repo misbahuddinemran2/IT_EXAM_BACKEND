@@ -16,8 +16,8 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@AllArgsConstructoruSettings
+    
 public class Exam {
     @Id
     @Column(name = "id", length = 36)
@@ -55,7 +55,11 @@ public class Exam {
     private LocalTime endTime;
     // Attempt Control
     @Column(name = "max_attempts")
-    private Integer maxAttempts; // NULL = unlimited
+    
+   private Integer maxAttempts; // NULL = unlimited
+   @Column(name = "cycle_number", nullable = false)
+   @Builder.Default
+private int cycleNumber = 1;
     // Settings
     @Column(name = "allow_review", nullable = false)
     @Builder.Default
