@@ -21,6 +21,7 @@ public class ExamAttemptHistoryResponse {
     private double totalMarks;
     private double percentage;
     private boolean isPassed;
+    private boolean resultPublished;
 
     private LocalDateTime submittedAt;
     private LocalDateTime createdAt;
