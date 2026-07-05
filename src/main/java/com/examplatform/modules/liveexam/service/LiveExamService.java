@@ -159,6 +159,9 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
             }
         }
 
+        boolean windowEnded = LocalDateTime.of(exam.getExamDate(), exam.getEndTime())
+                .isBefore(LocalDateTime.now(BD_ZONE));
+
         return LiveExamSummaryResponse.builder()
                 .id(exam.getId())
                 .name(exam.getName())
@@ -181,10 +184,10 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
                         .findByExamIdAndUserIdAndCycleNumber(exam.getId(), userId, exam.getCycleNumber())
                         .map(s -> s.getStatus().name())
                         .orElse("NOT_STARTED"))
+                .windowEnded(windowEnded)
                 .build();
  
     }
-
     private boolean isVisibleToUser(Exam exam, String userLevel) {
         List<String> levels = exam.getTargetLevels();
         if (levels == null || levels.isEmpty() || levels.contains("ALL")) return true;
