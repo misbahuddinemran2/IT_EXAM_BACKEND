@@ -428,6 +428,7 @@ public class ExamStudentService {
                 .chapterNames(new ArrayList<>(chapterNames))
                 .topicNames(new ArrayList<>(topicNames))
                 .startedAt(startedAt)
+                .timeTakenSeconds(history.getTimeTakenSeconds())
                 .build();
     }
 }
