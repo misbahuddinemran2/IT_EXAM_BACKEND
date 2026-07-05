@@ -429,6 +429,8 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
                 : 0;
         boolean passed = obtained.compareTo(exam.getPassMarks()) >= 0;
 
+        int timeTakenSeconds = (int) ChronoUnit.SECONDS.between(session.getStartedAt(), session.getSubmittedAt());
+
         ExamAttemptHistory history = ExamAttemptHistory.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(session.getUserId())
@@ -443,13 +445,14 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
                 .correctCount(correctCount)
                 .wrongCount(wrongCount)
                 .skipCount(skipCount)
+                .timeTakenSeconds(timeTakenSeconds)
                 .submittedAt(session.getSubmittedAt())
                 .build();
         attemptHistoryRepository.save(history);
 
-        log.info("Live exam closed: session={}, user={}, exam={}, cycle={}, status={}, marks={}, correct={}, wrong={}, skip={}",
+        log.info("Live exam closed: session={}, user={}, exam={}, cycle={}, status={}, marks={}, correct={}, wrong={}, skip={}, timeTaken={}s",
                 session.getId(), session.getUserId(), exam.getId(), session.getCycleNumber(), finalStatus, obtained,
-                correctCount, wrongCount, skipCount);
+                correctCount, wrongCount, skipCount, timeTakenSeconds);
     }
 
     // ============================================
