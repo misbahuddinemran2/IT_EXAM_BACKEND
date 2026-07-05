@@ -63,6 +63,12 @@ public class ExamAttemptHistory {
     @Column(name = "skip_count", nullable = false)
     @Builder.Default
     private int skipCount = 0;
+    
+@Column(name = "time_taken_seconds", nullable = false)
+    @Builder.Default
+    private int timeTakenSeconds = 0;
+    
+    
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
