@@ -116,17 +116,16 @@ public ExamResponse extendExam(String examId, LocalDate newExamDate,
     // ============================================
     // UPDATE EXAM (শুধু DRAFT exam update হবে)
     // ============================================
+
     @Transactional
     public ExamResponse updateExam(String examId, ExamCreationRequest request) {
         Exam exam = findExamById(examId);
 
-        if (!Exam.PublishStatus.DRAFT.equals(exam.getPublishStatus())) {
+        if (Exam.PublishStatus.PUBLISHED.equals(exam.getPublishStatus())) {
             throw new RuntimeException(
-                    "Only DRAFT exams can be updated. " +
-                            "Archive the exam first to make changes."
+                    "Published exam সরাসরি এডিট করা যাবে না। Archive করে তারপর এডিট করুন, অথবা Extend ব্যবহার করুন।"
             );
         }
-
         // Basic info update
         exam.setName(request.getName());
         exam.setDescription(request.getDescription());
