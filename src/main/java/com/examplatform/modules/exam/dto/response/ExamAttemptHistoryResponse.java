@@ -23,6 +23,7 @@ public class ExamAttemptHistoryResponse {
     private double percentage;
     private boolean isPassed;
     private boolean resultPublished;
+    
 
     private LocalDateTime submittedAt;
     private LocalDateTime createdAt;
@@ -33,4 +34,6 @@ public class ExamAttemptHistoryResponse {
     private List<String> chapterNames;
     private List<String> topicNames;
     private LocalDateTime startedAt;
+    private int timeTakenSeconds;
+
 }
