@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 import com.examplatform.modules.exam.entity.ExamSubjectConfig;
 import com.examplatform.modules.exam.entity.ExamTopicConfig;
@@ -404,10 +405,10 @@ public class ExamStudentService {
 
         // Result শুধু examDate + endTime (admin-নির্ধারিত) এর পর publish হবে
         boolean resultPublished = true;
-        if (examDate != null && endTime != null) {
-            LocalDateTime windowEnd = LocalDateTime.of(examDate, endTime);
-            resultPublished = LocalDateTime.now().isAfter(windowEnd);
-        }
+if (examDate != null && endTime != null) {
+    LocalDateTime windowEnd = LocalDateTime.of(examDate, endTime);
+    resultPublished = LocalDateTime.now(ZoneId.of("Asia/Dhaka")).isAfter(windowEnd);
+}
 
         return ExamAttemptHistoryResponse.builder()
                 .id(history.getId())
