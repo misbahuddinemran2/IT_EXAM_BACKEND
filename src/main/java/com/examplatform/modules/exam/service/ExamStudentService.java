@@ -316,13 +316,14 @@ public class ExamStudentService {
     private ExamAttemptHistoryResponse buildAttemptHistoryResponse(
             ExamAttemptHistory history) {
 
-        // Exam name + exam_date fetch
+        // Exam name + exam_date + end_time fetch
         String examName = "";
         String examType = "";
         LocalDate examDate = null;
+        LocalTime endTime = null;
         try {
             List<Map<String, Object>> result = jdbcTemplate.queryForList(
-                    "SELECT name, exam_type, exam_date FROM exams WHERE id = ?",
+                    "SELECT name, exam_type, exam_date, end_time FROM exams WHERE id = ?",
                     history.getExamId()
             );
             if (!result.isEmpty()) {
@@ -334,16 +335,22 @@ public class ExamStudentService {
                             ? ((java.sql.Date) dateObj).toLocalDate()
                             : LocalDate.parse(dateObj.toString());
                 }
+                Object timeObj = result.get(0).get("end_time");
+                if (timeObj != null) {
+                    endTime = (timeObj instanceof java.sql.Time)
+                            ? ((java.sql.Time) timeObj).toLocalTime()
+                            : LocalTime.parse(timeObj.toString());
+                }
             }
         } catch (Exception e) {
             log.warn("Could not fetch exam name: {}", history.getExamId());
         }
 
-        // Result শুধু examDate এর রাত ১১:৫৯টার পর publish হবে (Live Exam এর নিয়ম অনুযায়ী)
-        // examDate null থাকলে (regular/practice exam) সবসময় published ধরে নেওয়া হবে
+        // Result শুধু examDate + endTime (admin-নির্ধারিত) এর পর publish হবে
+        // examDate/endTime null থাকলে (regular/practice exam) সবসময় published ধরে নেওয়া হবে
         boolean resultPublished = true;
-        if (examDate != null) {
-            LocalDateTime windowEnd = LocalDateTime.of(examDate, LocalTime.of(23, 59, 59));
+        if (examDate != null && endTime != null) {
+            LocalDateTime windowEnd = LocalDateTime.of(examDate, endTime);
             resultPublished = LocalDateTime.now().isAfter(windowEnd);
         }
 
@@ -361,6 +368,8 @@ public class ExamStudentService {
                 .resultPublished(resultPublished)
                 .submittedAt(history.getSubmittedAt())
                 .createdAt(history.getCreatedAt())
+                .examEndTime(endTime != null ? endTime.toString() : null)
                 .build();
+    
     }
 }
