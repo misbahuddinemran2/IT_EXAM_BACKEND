@@ -13,6 +13,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import com.examplatform.modules.exam.entity.ExamSubjectConfig;
+import com.examplatform.modules.exam.entity.ExamTopicConfig;
+import com.examplatform.modules.exam.repository.ExamSubjectConfigRepository;
+import com.examplatform.modules.exam.repository.ExamTopicConfigRepository;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,6 +27,11 @@ public class ExamStudentService {
     private final ExamRepository examRepository;
     private final ExamAttemptHistoryRepository attemptHistoryRepository;
     private final ExamQuestionRepository examQuestionRepository;
+    private final ExamSubjectConfigRepository subjectConfigRepository;
+    private final ExamTopicConfigRepository topicConfigRepository;
+    private final com.examplatform.modules.taxonomy.repository.SubjectRepository subjectRepository;
+    private final com.examplatform.modules.taxonomy.repository.ChapterRepository chapterRepository;
+    private final com.examplatform.modules.taxonomy.repository.TopicRepository topicRepository;
     private final JdbcTemplate jdbcTemplate;
 
     // ============================================
@@ -346,8 +355,54 @@ public class ExamStudentService {
             log.warn("Could not fetch exam name: {}", history.getExamId());
         }
 
+        // Subject / Chapter / Topic names fetch
+        Set<String> subjectNames = new LinkedHashSet<>();
+        Set<String> chapterNames = new LinkedHashSet<>();
+        Set<String> topicNames = new LinkedHashSet<>();
+        try {
+            List<ExamSubjectConfig> subjectConfigs = subjectConfigRepository.findByExamId(history.getExamId());
+            List<ExamTopicConfig> topicConfigs = topicConfigRepository.findByExamId(history.getExamId());
+
+            for (ExamSubjectConfig sc : subjectConfigs) {
+                subjectRepository.findById(sc.getSubjectId())
+                        .ifPresent(s -> subjectNames.add(s.getName()));
+            }
+            for (ExamTopicConfig tc : topicConfigs) {
+                if (tc.getSubjectId() != null) {
+                    subjectRepository.findById(tc.getSubjectId())
+                            .ifPresent(s -> subjectNames.add(s.getName()));
+                }
+                if (tc.getChapterId() != null) {
+                    chapterRepository.findById(tc.getChapterId())
+                            .ifPresent(c -> chapterNames.add(c.getName()));
+                }
+                if (tc.getTopicId() != null) {
+                    topicRepository.findById(tc.getTopicId())
+                            .ifPresent(t -> topicNames.add(t.getName()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch subject/chapter/topic for exam: {}", history.getExamId());
+        }
+
+        // Attempt শুরুর সময় (live_exam_sessions টেবিল থেকে, session_id দিয়ে)
+        LocalDateTime startedAt = null;
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT started_at FROM live_exam_sessions WHERE id = ?",
+                    history.getSessionId()
+            );
+            if (!rows.isEmpty() && rows.get(0).get("started_at") != null) {
+                Object startedObj = rows.get(0).get("started_at");
+                startedAt = (startedObj instanceof java.sql.Timestamp)
+                        ? ((java.sql.Timestamp) startedObj).toLocalDateTime()
+                        : LocalDateTime.parse(startedObj.toString());
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch startedAt for session: {}", history.getSessionId());
+        }
+
         // Result শুধু examDate + endTime (admin-নির্ধারিত) এর পর publish হবে
-        // examDate/endTime null থাকলে (regular/practice exam) সবসময় published ধরে নেওয়া হবে
         boolean resultPublished = true;
         if (examDate != null && endTime != null) {
             LocalDateTime windowEnd = LocalDateTime.of(examDate, endTime);
@@ -369,7 +424,10 @@ public class ExamStudentService {
                 .submittedAt(history.getSubmittedAt())
                 .createdAt(history.getCreatedAt())
                 .examEndTime(endTime != null ? endTime.toString() : null)
+                .subjectNames(new ArrayList<>(subjectNames))
+                .chapterNames(new ArrayList<>(chapterNames))
+                .topicNames(new ArrayList<>(topicNames))
+                .startedAt(startedAt)
                 .build();
-    
     }
 }
