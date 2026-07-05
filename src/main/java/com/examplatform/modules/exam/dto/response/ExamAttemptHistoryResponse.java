@@ -2,6 +2,7 @@ package com.examplatform.modules.exam.dto.response;
 
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -27,4 +28,9 @@ public class ExamAttemptHistoryResponse {
     private LocalDateTime createdAt;
     
     private String examEndTime;
+
+    private List<String> subjectNames;
+    private List<String> chapterNames;
+    private List<String> topicNames;
+    private LocalDateTime startedAt;
 }
