@@ -25,4 +25,6 @@ public class ExamAttemptHistoryResponse {
 
     private LocalDateTime submittedAt;
     private LocalDateTime createdAt;
+    
+    private String examEndTime;
 }
