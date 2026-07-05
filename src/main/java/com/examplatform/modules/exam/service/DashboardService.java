@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -154,7 +155,7 @@ public class DashboardService {
     private boolean isResultPublished(String examId) {
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT exam_date FROM exams WHERE id = ?", examId);
+                    "SELECT exam_date, end_time FROM exams WHERE id = ?", examId);
             if (rows.isEmpty() || rows.get(0).get("exam_date") == null) {
                 return true; // exam_date না থাকলে regular/practice ধরনের, সবসময় published
             }
@@ -163,8 +164,13 @@ public class DashboardService {
                     ? ((java.sql.Date) dateObj).toLocalDate()
                     : LocalDate.parse(dateObj.toString());
 
-            LocalDateTime windowEnd = LocalDateTime.of(examDate, LocalTime.of(23, 59, 59));
-            return LocalDateTime.now().isAfter(windowEnd);
+            Object timeObj = rows.get(0).get("end_time");
+            LocalTime endTime = (timeObj instanceof java.sql.Time)
+                    ? ((java.sql.Time) timeObj).toLocalTime()
+                    : (timeObj != null ? LocalTime.parse(timeObj.toString()) : LocalTime.of(23, 59, 59));
+
+            LocalDateTime windowEnd = LocalDateTime.of(examDate, endTime);
+            return LocalDateTime.now(ZoneId.of("Asia/Dhaka")).isAfter(windowEnd);
         } catch (Exception e) {
             log.warn("Could not check result publish status for exam: {}", examId);
             return true; // fail-safe: error হলে published ধরে নেওয়া (dashboard যেন ভেঙে না যায়)
