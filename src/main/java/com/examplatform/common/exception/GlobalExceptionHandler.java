@@ -45,10 +45,18 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(
+            UnauthorizedException ex) {
+        log.warn("Unauthorized: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleBindingErrors(
             MethodArgumentNotValidException ex) {
-
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult()
                 .getAllErrors()
@@ -57,7 +65,6 @@ public class GlobalExceptionHandler {
                     String message = error.getDefaultMessage();
                     errors.put(field, message);
                 });
-
         log.warn("Binding validation errors: {}", errors);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
