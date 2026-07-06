@@ -1,6 +1,7 @@
 package com.examplatform.modules.user.controller;
 
 import com.examplatform.common.dto.ApiResponse;
+import com.examplatform.common.exception.UnauthorizedException;
 import com.examplatform.infrastructure.security.JwtTokenProvider;
 import com.examplatform.modules.user.dto.ChangePasswordRequest;
 import com.examplatform.modules.user.dto.UpdateProfileRequest;
@@ -53,10 +54,16 @@ public class UserProfileController {
     private String extractUserId(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new com.examplatform.common.exception.ValidationException(
-                "Authorization token দিতে হবে");
+            throw new UnauthorizedException("Authorization token দিতে হবে");
         }
         String token = authHeader.substring(7);
-        return jwtTokenProvider.getUsernameFromToken(token);
+        if (!jwtTokenProvider.validateToken(token)) {
+            throw new UnauthorizedException("Session মেয়াদ শেষ হয়ে গেছে, আবার login করুন");
+        }
+        try {
+            return jwtTokenProvider.getUsernameFromToken(token);
+        } catch (Exception e) {
+            throw new UnauthorizedException("Session মেয়াদ শেষ হয়ে গেছে, আবার login করুন");
+        }
     }
 }
