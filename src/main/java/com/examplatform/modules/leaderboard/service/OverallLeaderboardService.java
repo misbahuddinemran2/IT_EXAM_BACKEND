@@ -30,7 +30,7 @@ import java.util.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class classOverallLeaderboardService  {
+public class class OverallLeaderboardService  {
 
     private static final Set<String> ELIGIBLE_LEVELS = Set.of(
             "CLASS_9", "NEW_CLASS_10", "SSC", "HSC_1ST_YEAR", "HSC_2ND_YEAR"
