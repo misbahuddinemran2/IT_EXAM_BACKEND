@@ -1,7 +1,7 @@
 -- =========================================
 -- V28: Leaderboard Module
 -- Overall + Monthly Leaderboard for Live Exams
--- =========================================
+-- ======================================
 
 -- 1. LEADERBOARD SETTINGS (singleton row, admin-controlled)
 CREATE TABLE leaderboard_settings (
