@@ -27,7 +27,14 @@ public interface ExamAttemptHistoryRepository extends JpaRepository<ExamAttemptH
     Optional<ExamAttemptHistory> findTopByUserIdAndExamIdOrderByAttemptNumberDesc(
             String userId, String examId
     );
+    
+// এই মেথডগুলো তোমার existing ExamAttemptHistoryRepository ইন্টারফেসে যোগ করো:
 
+int countByUserId(String userId);
+
+int countByUserIdAndSubmittedAtBetween(String userId, LocalDateTime start, LocalDateTime end);
+
+int countBySubmittedAtBetween(LocalDateTime start, LocalDateTime end); // মাসে মোট কতগুলো attempt হয়েছে (RELATIVE threshold হিসাবের জন্য, exam count না attempt count)
     // Exam এর সব attempt (leaderboard এর জন্য)
     List<ExamAttemptHistory> findByExamIdOrderByPercentageDesc(String examId);
 
