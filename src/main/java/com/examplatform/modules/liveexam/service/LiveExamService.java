@@ -24,7 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
-import com.examplatform.modules.leaderboard.service.LeaderboardService;
+
+import com.examplatform.modules.leaderboard.service.OverallLeaderboardService;
+
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -55,8 +57,10 @@ public class LiveExamService {
     private final SubjectRepository subjectRepository;
     private final ChapterRepository chapterRepository;
     private final TopicRepository topicRepository;
-    private final LeaderboardService leaderboardService;
+  
+    private final OverallLeaderboardService leaderboardService;
 
+    
 @Transactional(readOnly = true)
 public LiveExamStartResponse getPracticeQuestions(String examId) {
     Exam exam = examRepository.findById(examId)
