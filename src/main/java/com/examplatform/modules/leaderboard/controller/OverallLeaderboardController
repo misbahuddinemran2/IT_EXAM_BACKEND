@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/leaderboard")
 @RequiredArgsConstructor
-public class LeaderboardController {
+public class OverallLeaderboardController {   // ← নাম পরিবর্তন
 
     private final LeaderboardService leaderboardService;
 
