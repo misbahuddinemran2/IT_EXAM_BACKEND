@@ -46,6 +46,8 @@ List<Exam> findByPublishStatus(Exam.PublishStatus publishStatus);
 
     long countByExamType(Exam.ExamType examType);
 
+    // ExamRepository তে যোগ করো:
+int countByExamDateBetween(LocalDate start, LocalDate end);
     // Date range query
     @Query("SELECT e FROM Exam e WHERE e.publishStatus = :status " +
             "AND e.examDate BETWEEN :startDate AND :endDate " +
