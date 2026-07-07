@@ -2,7 +2,8 @@ package com.examplatform.modules.leaderboard.controller;
 
 import com.examplatform.modules.leaderboard.dto.LeaderboardSettingsUpdateRequest;
 import com.examplatform.modules.leaderboard.entity.LeaderboardSettings;
-import com.examplatform.modules.leaderboard.service.LeaderboardService;
+import com.examplatform.modules.leaderboard.service.OverallLeaderboardService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AdminLeaderboardController {
 
-    private final LeaderboardService leaderboardService;
+    private final OverallLeaderboardService leaderboardService;
 
     @GetMapping("/settings")
     public LeaderboardSettings getSettings() {
