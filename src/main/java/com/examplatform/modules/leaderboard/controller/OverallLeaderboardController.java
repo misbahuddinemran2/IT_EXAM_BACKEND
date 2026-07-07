@@ -2,7 +2,7 @@ package com.examplatform.modules.leaderboard.controller;
 
 import com.examplatform.modules.leaderboard.dto.LeaderboardPageResponse;
 import com.examplatform.modules.leaderboard.dto.MyRankResponse;
-import com.examplatform.modules.leaderboard.service.LeaderboardService;
+import com.examplatform.modules.leaderboard.service.OverallLeaderboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class OverallLeaderboardController {   // ← নাম পরিবর্তন
 
-    private final LeaderboardService leaderboardService;
-
+    
+private final OverallLeaderboardService leaderboardService;
     @GetMapping("/overall")
     public LeaderboardPageResponse getOverall(
             Authentication auth,
