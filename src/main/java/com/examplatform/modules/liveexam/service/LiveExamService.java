@@ -54,6 +54,7 @@ public class LiveExamService {
     private final SubjectRepository subjectRepository;
     private final ChapterRepository chapterRepository;
     private final TopicRepository topicRepository;
+    private final LeaderboardService leaderboardService;
 
 @Transactional(readOnly = true)
 public LiveExamStartResponse getPracticeQuestions(String examId) {
@@ -449,7 +450,8 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
                 .submittedAt(session.getSubmittedAt())
                 .build();
         attemptHistoryRepository.save(history);
-
+        
+  leaderboardService.updateStatsAfterAttempt(session.getUserId(), history); 
         log.info("Live exam closed: session={}, user={}, exam={}, cycle={}, status={}, marks={}, correct={}, wrong={}, skip={}, timeTaken={}s",
                 session.getId(), session.getUserId(), exam.getId(), session.getCycleNumber(), finalStatus, obtained,
                 correctCount, wrongCount, skipCount, timeTakenSeconds);
