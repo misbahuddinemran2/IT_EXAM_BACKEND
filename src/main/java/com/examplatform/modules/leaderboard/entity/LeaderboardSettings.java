@@ -40,7 +40,7 @@ public class LeaderboardSettings {
 
     @Column(name = "is_enabled", nullable = false)
     @Builder.Default
-    private boolean isEnabled = true;
+    private boolean enabled = true;
 
     @Column(name = "updated_by_admin_id", length = 36)
     private String updatedByAdminId;
