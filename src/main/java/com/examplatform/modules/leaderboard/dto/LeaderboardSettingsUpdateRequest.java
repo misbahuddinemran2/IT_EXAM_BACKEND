@@ -13,5 +13,5 @@ public class LeaderboardSettingsUpdateRequest {
     private int monthlyMinExamsRequired;
     private int monthlyAllowedMissedExams;
     private boolean levelWiseSeparate;
-    private boolean isEnabled;
+    private boolean enabled;
 }
