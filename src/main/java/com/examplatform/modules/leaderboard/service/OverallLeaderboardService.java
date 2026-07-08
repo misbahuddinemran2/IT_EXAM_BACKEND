@@ -254,23 +254,23 @@ public class OverallLeaderboardService {
     // ============================================
     // ADMIN SETTINGS
     // ============================================
-    @Transactional(readOnly = true)
-    public LeaderboardSettings getSettings() {
-        return getSettingsOrDefault();
-    }
+  @Transactional(readOnly = true)
+public LeaderboardSettings getSettings() {
+    return getSettingsOrDefault();
+}
 
-    @Transactional
-    public LeaderboardSettings updateSettings(LeaderboardSettingsUpdateRequest req, String adminId) {
-        LeaderboardSettings settings = getSettingsOrDefault();
-        settings.setOverallMinExamsRequired(req.getOverallMinExamsRequired());
-        settings.setMonthlyThresholdType(req.getMonthlyThresholdType());
-        settings.setMonthlyMinExamsRequired(req.getMonthlyMinExamsRequired());
-        settings.setMonthlyAllowedMissedExams(req.getMonthlyAllowedMissedExams());
-        settings.setLevelWiseSeparate(req.isLevelWiseSeparate());
-        settings.setEnabled(req.isEnabled());
-        settings.setUpdatedByAdminId(adminId);
-        return settingsRepository.save(settings);
-    }
+@Transactional
+public LeaderboardSettings updateSettings(LeaderboardSettingsUpdateRequest req, String adminId) {
+    LeaderboardSettings settings = getSettingsOrDefault();
+    settings.setOverallMinExamsRequired(req.getOverallMinExamsRequired());
+    settings.setMonthlyThresholdType(req.getMonthlyThresholdType());
+    settings.setMonthlyMinExamsRequired(req.getMonthlyMinExamsRequired());
+    settings.setMonthlyAllowedMissedExams(req.getMonthlyAllowedMissedExams());
+    settings.setLevelWiseSeparate(req.isLevelWiseSeparate());
+    settings.setEnabled(req.isEnabled());
+    settings.setUpdatedByAdminId(adminId);
+    return settingsRepository.save(settings);
+}
 
     private LeaderboardSettings getSettingsOrDefault() {
         return settingsRepository.findById(SETTINGS_ID)
