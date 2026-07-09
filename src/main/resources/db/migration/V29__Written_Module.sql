@@ -32,7 +32,7 @@ CREATE TABLE written_exam (
     updated_at          TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT fk_written_exam_admin
-        FOREIGN KEY (created_by_admin_id) REFERENCES users(id),
+        FOREIGN KEY (created_by_admin_id) REFERENCES admin_users(id),
     CONSTRAINT fk_written_exam_subject
         FOREIGN KEY (subject_id) REFERENCES subjects(id),
     CONSTRAINT fk_written_exam_chapter
@@ -176,7 +176,7 @@ CREATE TABLE written_evaluation (
     CONSTRAINT fk_written_evaluation_submission
         FOREIGN KEY (submission_id) REFERENCES written_submission(id),
     CONSTRAINT fk_written_evaluation_admin
-        FOREIGN KEY (evaluated_by_admin_id) REFERENCES users(id),
+        FOREIGN KEY (evaluated_by_admin_id) REFERENCES admin_users(id),
     CONSTRAINT uk_written_evaluation_submission UNIQUE (submission_id)
 );
 
@@ -267,7 +267,7 @@ CREATE TABLE written_settings (
     updated_at                TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT fk_written_settings_admin
-        FOREIGN KEY (updated_by_admin_id) REFERENCES users(id)
+        FOREIGN KEY (updated_by_admin_id) REFERENCES admin_users(id)
 );
 
 INSERT INTO written_settings (id, default_evaluation_mode, allowed_submission_types,
