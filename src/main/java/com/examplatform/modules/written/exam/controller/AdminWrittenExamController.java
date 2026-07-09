@@ -1,5 +1,7 @@
 package com.examplatform.modules.written.exam.controller;
 
+import com.examplatform.modules.auth.entity.AdminUser;
+import com.examplatform.modules.auth.repository.AdminUserRepository;
 import com.examplatform.modules.written.exam.request.CreateExamRequest;
 import com.examplatform.modules.written.exam.request.ReopenExamRequest;
 import com.examplatform.modules.written.exam.request.UpdateExamRequest;
@@ -11,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/admin/written/exams")
@@ -18,10 +21,11 @@ import java.util.List;
 public class AdminWrittenExamController {
 
     private final WrittenExamService examService;
+    private final AdminUserRepository adminUserRepository;
 
     @PostMapping
     public ExamResponse createExam(@RequestBody CreateExamRequest request, Authentication auth) {
-        String adminId = auth.getName();
+        String adminId = resolveAdminId(auth);
         return examService.createExam(request, adminId);
     }
 
@@ -68,5 +72,11 @@ public class AdminWrittenExamController {
     @DeleteMapping("/{examId}")
     public void deleteExam(@PathVariable String examId) {
         examService.deleteExam(examId);
+    }
+
+    private String resolveAdminId(Authentication auth) {
+        AdminUser adminUser = adminUserRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new NoSuchElementException("Admin user not found: " + auth.getName()));
+        return adminUser.getId();
     }
 }
