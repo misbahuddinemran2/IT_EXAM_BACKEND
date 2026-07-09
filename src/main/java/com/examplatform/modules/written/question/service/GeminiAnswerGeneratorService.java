@@ -18,9 +18,8 @@ public class GeminiAnswerGeneratorService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    @Value("${gemini.model:gemini-2.5-flash}")
-    private String model;
-
+    @Value("${gemini.model:gemini-3.1-flash-lite}")
+private String model;
     public GeminiAnswerGeneratorService() {
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
