@@ -53,6 +53,8 @@ public class WrittenQuestion {
     private String partAQuestion;
     @Column(name = "part_a_model_answer", columnDefinition = "TEXT")
     private String partAModelAnswer;
+    @Column(name = "part_a_ai_answer", columnDefinition = "TEXT")
+    private String partAAiAnswer;
     @Column(name = "part_a_marking_scheme", columnDefinition = "TEXT")
     private String partAMarkingScheme;
     @Column(name = "part_a_max_mark", nullable = false, precision = 5, scale = 2)
@@ -64,6 +66,8 @@ public class WrittenQuestion {
     private String partBQuestion;
     @Column(name = "part_b_model_answer", columnDefinition = "TEXT")
     private String partBModelAnswer;
+    @Column(name = "part_b_ai_answer", columnDefinition = "TEXT")
+    private String partBAiAnswer;
     @Column(name = "part_b_marking_scheme", columnDefinition = "TEXT")
     private String partBMarkingScheme;
     @Column(name = "part_b_max_mark", nullable = false, precision = 5, scale = 2)
@@ -75,6 +79,8 @@ public class WrittenQuestion {
     private String partCQuestion;
     @Column(name = "part_c_model_answer", columnDefinition = "TEXT")
     private String partCModelAnswer;
+    @Column(name = "part_c_ai_answer", columnDefinition = "TEXT")
+    private String partCAiAnswer;
     @Column(name = "part_c_marking_scheme", columnDefinition = "TEXT")
     private String partCMarkingScheme;
     @Column(name = "part_c_max_mark", nullable = false, precision = 5, scale = 2)
@@ -86,6 +92,8 @@ public class WrittenQuestion {
     private String partDQuestion;
     @Column(name = "part_d_model_answer", columnDefinition = "TEXT")
     private String partDModelAnswer;
+    @Column(name = "part_d_ai_answer", columnDefinition = "TEXT")
+    private String partDAiAnswer;
     @Column(name = "part_d_marking_scheme", columnDefinition = "TEXT")
     private String partDMarkingScheme;
     @Column(name = "part_d_max_mark", nullable = false, precision = 5, scale = 2)

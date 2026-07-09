@@ -26,7 +26,7 @@ public class WrittenSubmissionFile {
     @Builder.Default
     private Integer pageNumber = 1;
 
-    @Column(name = "file_url", nullable = false, length = 500)
+    @Column(name = "file_url", length = 500)
     private String fileUrl;
 
     @Column(name = "text_content", columnDefinition = "TEXT")
