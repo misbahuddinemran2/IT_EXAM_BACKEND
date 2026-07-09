@@ -41,6 +41,18 @@ public class WrittenEvaluationDetail {
     @Builder.Default
     private BigDecimal maxMark = BigDecimal.ZERO;
 
+    @Column(name = "predicted_mark_manual", precision = 5, scale = 2)
+    private BigDecimal predictedMarkManual;
+
+    @Column(name = "predicted_mark_ai", precision = 5, scale = 2)
+    private BigDecimal predictedMarkAi;
+
+    @Column(name = "match_score_manual", precision = 5, scale = 4)
+    private BigDecimal matchScoreManual;
+
+    @Column(name = "match_score_ai", precision = 5, scale = 4)
+    private BigDecimal matchScoreAi;
+
     @Column(name = "feedback", columnDefinition = "TEXT")
     private String feedback;
 
