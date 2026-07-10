@@ -1,16 +1,23 @@
 package com.examplatform.modules.written.submission.service.impl;
 
+import com.examplatform.modules.written.evaluation.repository.WrittenEvaluationRepository;
 import com.examplatform.modules.written.exam.entity.WrittenExam;
 import com.examplatform.modules.written.exam.enums.ExamStatus;
 import com.examplatform.modules.written.exam.repository.WrittenExamRepository;
+import com.examplatform.modules.written.question.entity.WrittenQuestion;
+import com.examplatform.modules.written.question.enums.QuestionPart;
+import com.examplatform.modules.written.question.repository.WrittenQuestionRepository;
 import com.examplatform.modules.written.submission.entity.WrittenSubmission;
 import com.examplatform.modules.written.submission.entity.WrittenSubmissionFile;
+import com.examplatform.modules.written.submission.entity.WrittenSubmissionTranscript;
 import com.examplatform.modules.written.submission.enums.SubmissionStatus;
 import com.examplatform.modules.written.submission.mapper.WrittenSubmissionMapper;
 import com.examplatform.modules.written.submission.repository.WrittenSubmissionFileRepository;
 import com.examplatform.modules.written.submission.repository.WrittenSubmissionRepository;
+import com.examplatform.modules.written.submission.repository.WrittenSubmissionTranscriptRepository;
 import com.examplatform.modules.written.submission.request.StartExamRequest;
 import com.examplatform.modules.written.submission.request.SubmitExamRequest;
+import com.examplatform.modules.written.submission.request.SubmitTextAnswersRequest;
 import com.examplatform.modules.written.submission.request.UploadSubmissionFileRequest;
 import com.examplatform.modules.written.submission.response.SubmissionFileResponse;
 import com.examplatform.modules.written.submission.response.SubmissionResponse;
@@ -29,7 +36,9 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
 
     private final WrittenSubmissionRepository submissionRepository;
     private final WrittenSubmissionFileRepository fileRepository;
+    private final WrittenSubmissionTranscriptRepository transcriptRepository;
     private final WrittenExamRepository examRepository;
+    private final WrittenQuestionRepository questionRepository;
     private final WrittenSubmissionMapper submissionMapper;
 
     @Override
@@ -71,7 +80,6 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
     }
 
     private SubmissionResponse startPracticeAttempt(WrittenExam exam, String userId) {
-        // Practice শুধু ENDED/ARCHIVED exam-এর ওপর করা উচিত (Practice Archive থেকে)
         if (exam.getStatus() != ExamStatus.ENDED && exam.getStatus() != ExamStatus.ARCHIVED) {
             throw new IllegalStateException("Practice is only allowed on ended/archived exams");
         }
@@ -111,6 +119,47 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
         return submissionMapper.toFileResponse(fileRepository.save(file));
     }
 
+    /**
+     * TEXT-mode answer submission — bypasses WrittenSubmissionFile entirely.
+     * Each (questionId, part) has its own text box in the student app, so we can save
+     * directly into WrittenSubmissionTranscript per part, with no AI transcription needed
+     * (the student already typed the exact text). Calling this multiple times updates
+     * existing entries rather than duplicating them, so students can edit answers
+     * while still IN_PROGRESS.
+     */
+    @Override
+    @Transactional
+    public void submitTextAnswers(String submissionId, String userId, SubmitTextAnswersRequest request) {
+        WrittenSubmission submission = getOwnedSubmissionOrThrow(submissionId, userId);
+
+        if (submission.getStatus() != SubmissionStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Cannot submit answers, submission is not in progress");
+        }
+
+        for (SubmitTextAnswersRequest.TextAnswerEntry entry : request.getAnswers()) {
+            WrittenQuestion question = questionRepository.findById(entry.getQuestionId())
+                    .orElseThrow(() -> new NoSuchElementException("Question not found: " + entry.getQuestionId()));
+
+            if (!question.getExamId().equals(submission.getExamId())) {
+                throw new IllegalArgumentException("Question " + entry.getQuestionId()
+                        + " does not belong to this submission's exam");
+            }
+
+            QuestionPart part = QuestionPart.valueOf(entry.getPart());
+
+            WrittenSubmissionTranscript transcript = transcriptRepository
+                    .findBySubmissionIdAndQuestionIdAndPart(submissionId, question.getId(), part)
+                    .orElse(WrittenSubmissionTranscript.builder()
+                            .submissionId(submissionId)
+                            .question(question)
+                            .part(part)
+                            .build());
+
+            transcript.setTranscribedText(entry.getAnswerText());
+            transcriptRepository.save(transcript);
+        }
+    }
+
     @Override
     @Transactional
     public SubmissionResponse submitExam(String submissionId, String userId, SubmitExamRequest request) {
@@ -121,8 +170,10 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
         }
 
         long fileCount = fileRepository.countBySubmissionId(submissionId);
-        if (fileCount == 0) {
-            throw new IllegalStateException("Cannot submit without uploading at least one page");
+        long transcriptCount = transcriptRepository.findBySubmissionId(submissionId).size();
+
+        if (fileCount == 0 && transcriptCount == 0) {
+            throw new IllegalStateException("Cannot submit without uploading a file or answering at least one part");
         }
 
         submission.setStatus(SubmissionStatus.SUBMITTED);
@@ -138,7 +189,7 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
 
     @Override
     public List<SubmissionFileResponse> getSubmissionFiles(String submissionId, String userId) {
-        getOwnedSubmissionOrThrow(submissionId, userId); // ownership check
+        getOwnedSubmissionOrThrow(submissionId, userId);
         return fileRepository.findBySubmissionIdOrderByPageNumberAsc(submissionId).stream()
                 .map(submissionMapper::toFileResponse)
                 .toList();
