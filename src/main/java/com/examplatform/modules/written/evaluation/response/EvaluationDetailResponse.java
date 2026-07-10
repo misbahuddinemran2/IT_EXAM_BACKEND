@@ -19,5 +19,11 @@ public class EvaluationDetailResponse {
     private String part;
     private BigDecimal obtainedMark;
     private BigDecimal maxMark;
+
+    private BigDecimal predictedMarkManual;
+    private BigDecimal predictedMarkAi;
+    private BigDecimal matchScoreManual;
+    private BigDecimal matchScoreAi;
+
     private String feedback;
 }
