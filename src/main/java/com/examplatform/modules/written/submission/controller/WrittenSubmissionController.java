@@ -2,6 +2,7 @@ package com.examplatform.modules.written.submission.controller;
 
 import com.examplatform.modules.written.submission.request.StartExamRequest;
 import com.examplatform.modules.written.submission.request.SubmitExamRequest;
+import com.examplatform.modules.written.submission.request.SubmitTextAnswersRequest;
 import com.examplatform.modules.written.submission.request.UploadSubmissionFileRequest;
 import com.examplatform.modules.written.submission.response.SubmissionFileResponse;
 import com.examplatform.modules.written.submission.response.SubmissionResponse;
@@ -31,6 +32,19 @@ public class WrittenSubmissionController {
             @RequestBody UploadSubmissionFileRequest request,
             Authentication auth) {
         return submissionService.uploadFile(submissionId, auth.getName(), request);
+    }
+
+    /**
+     * TEXT-mode answer submission — one call can save/update multiple (question, part) text boxes
+     * at once (e.g. all 12 boxes for a 3-question exam), or the app can call this per box as the
+     * student types/saves each answer.
+     */
+    @PostMapping("/{submissionId}/submit-text")
+    public void submitTextAnswers(
+            @PathVariable String submissionId,
+            @RequestBody SubmitTextAnswersRequest request,
+            Authentication auth) {
+        submissionService.submitTextAnswers(submissionId, auth.getName(), request);
     }
 
     @PostMapping("/{submissionId}/submit")
