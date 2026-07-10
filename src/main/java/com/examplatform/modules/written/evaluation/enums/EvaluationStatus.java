@@ -1,5 +1,5 @@
 package com.examplatform.modules.written.evaluation.enums;
 
 public enum EvaluationStatus {
-    PENDING, PROCESSING, COMPLETED, FAILED
+    PENDING, PROCESSING, PENDING_REVIEW, COMPLETED, FAILED
 }
