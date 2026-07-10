@@ -36,6 +36,10 @@ public class WrittenEvaluationMapper {
                 .part(detail.getPart().name())
                 .obtainedMark(detail.getObtainedMark())
                 .maxMark(detail.getMaxMark())
+                .predictedMarkManual(detail.getPredictedMarkManual())
+                .predictedMarkAi(detail.getPredictedMarkAi())
+                .matchScoreManual(detail.getMatchScoreManual())
+                .matchScoreAi(detail.getMatchScoreAi())
                 .feedback(detail.getFeedback())
                 .build();
     }
