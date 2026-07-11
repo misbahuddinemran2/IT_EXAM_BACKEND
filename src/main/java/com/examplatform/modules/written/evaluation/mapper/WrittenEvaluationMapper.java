@@ -20,6 +20,7 @@ public class WrittenEvaluationMapper {
                 .evaluationMode(evaluation.getEvaluationMode().name())
                 .status(evaluation.getStatus().name())
                 .totalMark(evaluation.getTotalMark())
+                .resultPublished(evaluation.isResultPublished())
                 .evaluatedByAdminId(evaluation.getEvaluatedByAdminId())
                 .evaluatedAt(evaluation.getEvaluatedAt())
                 .details(details.stream().map(this::toDetailResponse).toList())
