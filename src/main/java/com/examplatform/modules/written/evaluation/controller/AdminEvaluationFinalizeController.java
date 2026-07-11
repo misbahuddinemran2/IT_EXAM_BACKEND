@@ -33,6 +33,16 @@ public class AdminEvaluationFinalizeController {
         return finalizeService.finalizeEvaluation(submissionId, request, adminId);
     }
 
+    /**
+     * For exams where written_settings.resultPublishMode = MANUAL, finalizing an evaluation
+     * does NOT reveal the mark to the student automatically. The admin calls this endpoint
+     * whenever they're ready to publish that specific student's result.
+     */
+    @PostMapping("/{submissionId}/publish-result")
+    public EvaluationResponse publishResult(@PathVariable String submissionId) {
+        return finalizeService.publishResult(submissionId);
+    }
+
     private String resolveAdminId(Authentication auth) {
         return adminUserRepository.findByUsername(auth.getName())
                 .orElseThrow(() -> new NoSuchElementException("Admin user not found: " + auth.getName()))
