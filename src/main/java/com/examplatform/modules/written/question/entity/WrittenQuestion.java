@@ -35,7 +35,7 @@ public class WrittenQuestion {
     private Chapter chapter;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "topic_id", nullable = false)
+    @JoinColumn(name = "topic_id")
     private Topic topic;
 
     @Column(name = "question_order", nullable = false)
