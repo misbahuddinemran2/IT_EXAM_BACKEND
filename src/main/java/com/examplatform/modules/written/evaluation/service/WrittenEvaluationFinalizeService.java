@@ -1,3 +1,4 @@
+
 package com.examplatform.modules.written.evaluation.service;
 
 import com.examplatform.modules.written.evaluation.entity.WrittenEvaluation;
@@ -71,8 +72,6 @@ public class WrittenEvaluationFinalizeService {
                         .status(EvaluationStatus.PENDING)
                         .build());
 
-        // Keep evaluationMode in sync with the exam's actual mode (in case it was created earlier
-        // by the orchestration service or is being finalized for the first time here)
         evaluation.setEvaluationMode(exam.getEvaluationMode());
 
         WrittenEvaluation savedEvaluation = evaluationRepository.save(evaluation);
@@ -94,8 +93,6 @@ public class WrittenEvaluationFinalizeService {
                 throw new IllegalArgumentException("obtainedMark cannot be negative");
             }
 
-            // Find existing detail row (may already have predicted marks from orchestration step)
-            // or create a fresh one if this part was never touched before (e.g. pure MANUAL exam).
             WrittenEvaluationDetail detail = detailRepository.findByEvaluationId(savedEvaluation.getId()).stream()
                     .filter(d -> d.getQuestion().getId().equals(question.getId()) && d.getPart() == part)
                     .findFirst()
@@ -120,8 +117,6 @@ public class WrittenEvaluationFinalizeService {
         savedEvaluation.setEvaluatedByAdminId(adminId);
         savedEvaluation.setEvaluatedAt(LocalDateTime.now());
 
-        // written_settings.resultPublishMode decides whether the student can see this mark
-        // right away (INSTANT) or only after an admin explicitly publishes it later (MANUAL).
         String resultPublishMode = settingsRepository.findById(SETTINGS_ID)
                 .map(s -> s.getResultPublishMode())
                 .orElse("MANUAL");
@@ -136,6 +131,30 @@ public class WrittenEvaluationFinalizeService {
         submissionRepository.save(submission);
 
         return evaluationMapper.toResponse(savedEvaluation, detailRepository.findByEvaluationId(savedEvaluation.getId()));
+    }
+
+    /**
+     * Publishes results for every COMPLETED-but-unpublished evaluation belonging to this exam
+     * in one go — used when the admin is done grading everyone and wants to release all results
+     * at once instead of publishing student by student.
+     */
+    @Transactional
+    public int publishAllResultsForExam(String examId) {
+        java.util.List<WrittenSubmission> submissions = submissionRepository.findByExamId(examId);
+
+        int publishedCount = 0;
+        for (WrittenSubmission submission : submissions) {
+            var evaluationOpt = evaluationRepository.findBySubmissionId(submission.getId());
+            if (evaluationOpt.isEmpty()) continue;
+
+            WrittenEvaluation evaluation = evaluationOpt.get();
+            if (evaluation.getStatus() == EvaluationStatus.COMPLETED && !evaluation.isResultPublished()) {
+                evaluation.setResultPublished(true);
+                evaluationRepository.save(evaluation);
+                publishedCount++;
+            }
+        }
+        return publishedCount;
     }
 
     private BigDecimal resolveMaxMark(WrittenQuestion question, QuestionPart part) {
