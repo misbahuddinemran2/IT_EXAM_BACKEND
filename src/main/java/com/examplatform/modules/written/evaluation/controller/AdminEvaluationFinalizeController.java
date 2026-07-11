@@ -1,3 +1,4 @@
+
 package com.examplatform.modules.written.evaluation.controller;
 
 import com.examplatform.modules.auth.repository.AdminUserRepository;
@@ -41,6 +42,20 @@ public class AdminEvaluationFinalizeController {
     @PostMapping("/{submissionId}/publish-result")
     public EvaluationResponse publishResult(@PathVariable String submissionId) {
         return finalizeService.publishResult(submissionId);
+    }
+
+    /**
+     * Publishes all COMPLETED-but-unpublished evaluations for an exam at once.
+     * Returns how many results were actually published (already-published ones are skipped).
+     */
+    @PostMapping("/exam/{examId}/publish-all-results")
+    public java.util.Map<String, Object> publishAllResults(@PathVariable String examId) {
+        int count = finalizeService.publishAllResultsForExam(examId);
+        return java.util.Map.of(
+                "examId", examId,
+                "publishedCount", count,
+                "message", "Published " + count + " result(s) for exam " + examId
+        );
     }
 
     private String resolveAdminId(Authentication auth) {
