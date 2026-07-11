@@ -2,6 +2,7 @@ package com.examplatform.modules.written.submission.controller;
 
 import com.examplatform.modules.written.submission.entity.WrittenSubmissionFile;
 import com.examplatform.modules.written.submission.repository.WrittenSubmissionFileRepository;
+import com.examplatform.modules.written.submission.response.SubmissionFileResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,25 @@ import java.util.NoSuchElementException;
 public class AdminSubmissionDownloadController {
 
     private final WrittenSubmissionFileRepository submissionFileRepository;
+
+    /**
+     * Returns the raw file list (with direct CDN URLs) as JSON so the admin app can render
+     * images/PDFs inline instead of following a redirect. This is the endpoint the admin app
+     * should call to build an in-app answer-script viewer.
+     */
+    @GetMapping("/{submissionId}/files")
+    public List<SubmissionFileResponse> getFiles(@PathVariable String submissionId) {
+        return submissionFileRepository.findBySubmissionIdOrderByPageNumberAsc(submissionId).stream()
+                .map(f -> SubmissionFileResponse.builder()
+                        .id(f.getId())
+                        .submissionId(f.getSubmissionId())
+                        .pageNumber(f.getPageNumber())
+                        .fileUrl(f.getFileUrl())
+                        .fileType(f.getFileType())
+                        .uploadedAt(f.getUploadedAt())
+                        .build())
+                .toList();
+    }
 
     /**
      * Redirects to the first page's file URL (ImageKit CDN).
