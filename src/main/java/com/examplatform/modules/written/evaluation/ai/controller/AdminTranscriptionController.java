@@ -88,6 +88,30 @@ public class AdminTranscriptionController {
     }
 
     /**
+     * Returns all transcribed answers (AI or manually entered) for a submission,
+     * so the admin can read the student's answers before giving manual marks.
+     */
+    @GetMapping
+    public List<Map<String, Object>> getTranscripts(@PathVariable String submissionId) {
+        if (!submissionRepository.existsById(submissionId)) {
+            throw new NoSuchElementException("Submission not found: " + submissionId);
+        }
+
+        List<WrittenSubmissionTranscript> transcripts = transcriptRepository.findBySubmissionId(submissionId);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (WrittenSubmissionTranscript t : transcripts) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("questionId", t.getQuestion().getId());
+            item.put("questionOrder", t.getQuestion().getQuestionOrder());
+            item.put("part", t.getPart().name());
+            item.put("transcribedText", t.getTranscribedText());
+            result.add(item);
+        }
+        return result;
+    }
+
+    /**
      * Admin manually enters/pastes the transcribed text themselves (no AI call),
      * after extracting it some other way from the PDF/image.
      */
