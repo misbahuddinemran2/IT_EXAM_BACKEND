@@ -19,11 +19,31 @@ public class WrittenEvaluationController {
     private final WrittenEvaluationService evaluationService;
     private final WrittenSubmissionRepository submissionRepository;
 
-    // Student views their own evaluation result for a submission
+    // Student views their own evaluation result for a submission.
+    // If written_settings.resultPublishMode = MANUAL and the admin hasn't published this
+    // specific result yet, marks/details are withheld — only resultPublished=false and the
+    // evaluation status are returned, so the student app can show a "still under review" state.
     @GetMapping("/submission/{submissionId}")
     public EvaluationResponse getMyEvaluation(@PathVariable String submissionId, Authentication auth) {
         verifyOwnership(submissionId, auth);
-        return evaluationService.getEvaluationBySubmissionId(submissionId);
+        EvaluationResponse response = evaluationService.getEvaluationBySubmissionId(submissionId);
+
+        if (!response.isResultPublished()) {
+            return EvaluationResponse.builder()
+                    .id(response.getId())
+                    .submissionId(response.getSubmissionId())
+                    .examId(response.getExamId())
+                    .studentUserId(response.getStudentUserId())
+                    .evaluationMode(response.getEvaluationMode())
+                    .status(response.getStatus())
+                    .resultPublished(false)
+                    .details(java.util.List.of())
+                    .createdAt(response.getCreatedAt())
+                    .updatedAt(response.getUpdatedAt())
+                    .build();
+        }
+
+        return response;
     }
 
     /**
