@@ -1,4 +1,3 @@
-
 package com.examplatform.modules.written.evaluation.service;
 
 import com.examplatform.modules.written.evaluation.entity.WrittenEvaluation;
@@ -29,14 +28,6 @@ import java.util.NoSuchElementException;
 
 /**
  * Mode-aware finalization of an evaluation (works for MANUAL, AI, and HYBRID exams).
- * Unlike WrittenManualEvaluationService (which always hardcodes evaluationMode=MANUAL and
- * wipes prior detail rows), this service:
- *  - Uses the exam's actual evaluationMode
- *  - Updates existing WrittenEvaluationDetail rows in place, preserving predicted_mark_manual/ai
- *    and match_score_manual/ai history (set earlier by EvaluationOrchestrationService) instead of
- *    deleting them
- *  - Lets the admin submit the final obtainedMark for every part (whether it came from reviewing
- *    a predicted AI mark, or from reading the answer script manually for a MANUAL-mode part)
  */
 @Service
 @RequiredArgsConstructor
@@ -57,9 +48,12 @@ public class WrittenEvaluationFinalizeService {
         WrittenSubmission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new NoSuchElementException("Submission not found: " + submissionId));
 
-        if (submission.getStatus() != SubmissionStatus.SUBMITTED
-                && submission.getStatus() != SubmissionStatus.UNDER_REVIEW) {
-            throw new IllegalStateException("Submission must be SUBMITTED or UNDER_REVIEW to finalize evaluation");
+        // Finalizing is allowed for SUBMITTED, UNDER_REVIEW, or already-COMPLETED submissions —
+        // the last case lets an admin correct a mistake and re-finalize later. It's only
+        // blocked before the student has actually submitted (NOT_STARTED / IN_PROGRESS).
+        if (submission.getStatus() == SubmissionStatus.NOT_STARTED
+                || submission.getStatus() == SubmissionStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Submission has not been submitted yet — cannot finalize evaluation");
         }
 
         WrittenExam exam = examRepository.findById(submission.getExamId())
@@ -133,11 +127,6 @@ public class WrittenEvaluationFinalizeService {
         return evaluationMapper.toResponse(savedEvaluation, detailRepository.findByEvaluationId(savedEvaluation.getId()));
     }
 
-    /**
-     * Publishes results for every COMPLETED-but-unpublished evaluation belonging to this exam
-     * in one go — used when the admin is done grading everyone and wants to release all results
-     * at once instead of publishing student by student.
-     */
     @Transactional
     public int publishAllResultsForExam(String examId) {
         java.util.List<WrittenSubmission> submissions = submissionRepository.findByExamId(examId);
@@ -166,10 +155,6 @@ public class WrittenEvaluationFinalizeService {
         };
     }
 
-    /**
-     * Manually reveals an already-finalized evaluation's mark to the student.
-     * Used when written_settings.resultPublishMode = MANUAL (finalize alone doesn't publish).
-     */
     @Transactional
     public EvaluationResponse publishResult(String submissionId) {
         WrittenEvaluation evaluation = evaluationRepository.findBySubmissionId(submissionId)
