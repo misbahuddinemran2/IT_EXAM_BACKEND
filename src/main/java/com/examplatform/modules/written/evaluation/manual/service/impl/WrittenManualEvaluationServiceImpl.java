@@ -58,8 +58,13 @@ public class WrittenManualEvaluationServiceImpl implements WrittenManualEvaluati
         WrittenEvaluation savedEvaluation = evaluationRepository.save(evaluation);
 
         if (!isNewEvaluation) {
-            // Re-evaluation — wipe previous detail rows before inserting fresh ones
+            // Re-evaluation — wipe previous detail rows before inserting fresh ones.
+            // flush() is required here: Hibernate's default flush order runs INSERTs
+            // before DELETEs, so without an explicit flush the new rows (same
+            // evaluation_id+question_id+part) would hit uk_written_eval_detail_part
+            // while the old rows are still present, causing a unique constraint violation.
             detailRepository.deleteByEvaluationId(savedEvaluation.getId());
+            detailRepository.flush();
         }
 
         BigDecimal totalMark = BigDecimal.ZERO;
