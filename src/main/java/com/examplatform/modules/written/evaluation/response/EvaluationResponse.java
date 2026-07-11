@@ -22,6 +22,7 @@ public class EvaluationResponse {
     private String evaluationMode;
     private String status;
     private BigDecimal totalMark;
+    private boolean resultPublished;
     private String evaluatedByAdminId;
     private LocalDateTime evaluatedAt;
     private List<EvaluationDetailResponse> details;
