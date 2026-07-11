@@ -55,7 +55,9 @@ public class WrittenQuestionMapper {
     public void applyUpdate(WrittenQuestion q, UpdateQuestionRequest req) {
         if (req.getSubjectId() != null) q.setSubject(findSubject(req.getSubjectId()));
         if (req.getChapterId() != null) q.setChapter(findChapter(req.getChapterId()));
-        if (req.getTopicId() != null) q.setTopic(findTopic(req.getTopicId()));
+        if (req.getTopicId() != null) {
+            q.setTopic(req.getTopicId().isBlank() ? null : findTopic(req.getTopicId()));
+        }
 
         if (req.getQuestionOrder() != null) q.setQuestionOrder(req.getQuestionOrder());
         if (req.getStimulus() != null) q.setStimulus(req.getStimulus());
@@ -90,8 +92,8 @@ public class WrittenQuestionMapper {
                 .subjectName(q.getSubject().getName())
                 .chapterId(q.getChapter().getId())
                 .chapterName(q.getChapter().getName())
-                .topicId(q.getTopic().getId())
-                .topicName(q.getTopic().getName())
+                .topicId(q.getTopic() != null ? q.getTopic().getId() : null)
+                .topicName(q.getTopic() != null ? q.getTopic().getName() : null)
                 .questionOrder(q.getQuestionOrder())
                 .stimulus(q.getStimulus())
                 .stimulusBn(q.getStimulusBn())
@@ -148,6 +150,9 @@ public class WrittenQuestionMapper {
     }
 
     private Topic findTopic(String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
         return topicRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Topic not found: " + id));
     }
