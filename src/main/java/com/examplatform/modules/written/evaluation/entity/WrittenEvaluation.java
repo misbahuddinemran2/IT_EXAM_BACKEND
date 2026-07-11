@@ -47,6 +47,16 @@ public class WrittenEvaluation {
     @Column(name = "evaluated_at")
     private LocalDateTime evaluatedAt;
 
+    /**
+     * Whether the student is allowed to see this evaluation's marks yet.
+     * Controlled by written_settings.resultPublishMode:
+     *  - INSTANT -> set true automatically the moment finalizeEvaluation() runs
+     *  - MANUAL  -> stays false until an admin explicitly calls the publish-result endpoint
+     */
+    @Column(name = "result_published", nullable = false)
+    @Builder.Default
+    private boolean resultPublished = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
