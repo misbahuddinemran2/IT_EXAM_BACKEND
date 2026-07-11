@@ -14,6 +14,7 @@ import com.examplatform.modules.written.exam.repository.WrittenExamRepository;
 import com.examplatform.modules.written.question.entity.WrittenQuestion;
 import com.examplatform.modules.written.question.enums.QuestionPart;
 import com.examplatform.modules.written.question.repository.WrittenQuestionRepository;
+import com.examplatform.modules.written.settings.repository.WrittenSettingsRepository;
 import com.examplatform.modules.written.submission.entity.WrittenSubmission;
 import com.examplatform.modules.written.submission.enums.SubmissionStatus;
 import com.examplatform.modules.written.submission.repository.WrittenSubmissionRepository;
@@ -46,6 +47,9 @@ public class WrittenEvaluationFinalizeService {
     private final WrittenSubmissionRepository submissionRepository;
     private final WrittenQuestionRepository questionRepository;
     private final WrittenExamRepository examRepository;
+    private final WrittenSettingsRepository settingsRepository;
+
+    private static final String SETTINGS_ID = "default";
 
     @Transactional
     public EvaluationResponse finalizeEvaluation(String submissionId, ManualEvaluationRequest request, String adminId) {
@@ -115,6 +119,16 @@ public class WrittenEvaluationFinalizeService {
         savedEvaluation.setStatus(EvaluationStatus.COMPLETED);
         savedEvaluation.setEvaluatedByAdminId(adminId);
         savedEvaluation.setEvaluatedAt(LocalDateTime.now());
+
+        // written_settings.resultPublishMode decides whether the student can see this mark
+        // right away (INSTANT) or only after an admin explicitly publishes it later (MANUAL).
+        String resultPublishMode = settingsRepository.findById(SETTINGS_ID)
+                .map(s -> s.getResultPublishMode())
+                .orElse("MANUAL");
+        if ("INSTANT".equalsIgnoreCase(resultPublishMode)) {
+            savedEvaluation.setResultPublished(true);
+        }
+
         evaluationRepository.save(savedEvaluation);
 
         submission.setTotalObtainedMark(totalMark);
@@ -131,5 +145,24 @@ public class WrittenEvaluationFinalizeService {
             case C -> question.getPartCMaxMark();
             case D -> question.getPartDMaxMark();
         };
+    }
+
+    /**
+     * Manually reveals an already-finalized evaluation's mark to the student.
+     * Used when written_settings.resultPublishMode = MANUAL (finalize alone doesn't publish).
+     */
+    @Transactional
+    public EvaluationResponse publishResult(String submissionId) {
+        WrittenEvaluation evaluation = evaluationRepository.findBySubmissionId(submissionId)
+                .orElseThrow(() -> new NoSuchElementException("Evaluation not found for submission: " + submissionId));
+
+        if (evaluation.getStatus() != EvaluationStatus.COMPLETED) {
+            throw new IllegalStateException("Evaluation must be finalized (COMPLETED) before it can be published");
+        }
+
+        evaluation.setResultPublished(true);
+        evaluationRepository.save(evaluation);
+
+        return evaluationMapper.toResponse(evaluation, detailRepository.findByEvaluationId(evaluation.getId()));
     }
 }
