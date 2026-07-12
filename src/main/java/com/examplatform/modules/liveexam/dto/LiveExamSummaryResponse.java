@@ -37,6 +37,8 @@ public class LiveExamSummaryResponse {
     private String attemptStatus;
     private boolean windowEnded;
 
-    // নতুন: ছাত্র আগেই দিয়ে থাকলে তার প্রাপ্ত নম্বর (SUBMITTED/AUTO_SUBMITTED হলে ছাড়া null)
     private BigDecimal obtainedMarks;
+
+    // নতুন: ছাত্রের ফলাফল এখনই দেখানো উচিত কিনা (cycle/window লজিক অনুযায়ী)
+    private boolean resultAvailable;
 }
