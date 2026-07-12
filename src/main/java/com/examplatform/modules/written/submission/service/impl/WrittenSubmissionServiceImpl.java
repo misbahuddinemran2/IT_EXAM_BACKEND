@@ -58,12 +58,22 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
             throw new IllegalStateException("Exam is not currently LIVE");
         }
 
-        boolean alreadyAttempted = submissionRepository
-                .existsByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
+        // If a submission already exists for this exam+cycle (any status), resume it instead of
+        // creating a duplicate. This handles app crashes / accidental exits mid-exam gracefully —
+        // the student just picks up where they left off with the same submissionId.
+        java.util.Optional<WrittenSubmission> existing = submissionRepository
+                .findByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
                         exam.getId(), userId, exam.getCycleNumber());
 
-        if (alreadyAttempted) {
-            throw new IllegalStateException("You have already attempted this exam in the current cycle");
+        if (existing.isPresent()) {
+            WrittenSubmission submission = existing.get();
+            if (submission.getStatus() == SubmissionStatus.SUBMITTED
+                    || submission.getStatus() == SubmissionStatus.UNDER_REVIEW
+                    || submission.getStatus() == SubmissionStatus.COMPLETED) {
+                throw new IllegalStateException("You have already attempted this exam in the current cycle");
+            }
+            // NOT_STARTED / IN_PROGRESS — safe to resume
+            return submissionMapper.toResponse(submission);
         }
 
         WrittenSubmission submission = WrittenSubmission.builder()
@@ -78,6 +88,7 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
 
         return submissionMapper.toResponse(submissionRepository.save(submission));
     }
+    
 
     private SubmissionResponse startPracticeAttempt(WrittenExam exam, String userId) {
         if (exam.getStatus() != ExamStatus.ENDED && exam.getStatus() != ExamStatus.ARCHIVED) {
