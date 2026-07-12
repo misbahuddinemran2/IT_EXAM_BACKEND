@@ -12,15 +12,16 @@ public interface WrittenSubmissionRepository extends JpaRepository<WrittenSubmis
     boolean existsByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
             String examId, String userId, Integer cycleNumber);
 
-    /**
-     * Same as above but only counts an attempt as "used up" once the student has actually
-     * finished it (SUBMITTED/UNDER_REVIEW/COMPLETED). An IN_PROGRESS row — e.g. left behind by
-     * an app crash before the student ever submitted — should NOT block them from resuming.
-     */
     boolean existsByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalseAndStatusIn(
             String examId, String userId, Integer cycleNumber, List<SubmissionStatus> statuses);
 
-    Optional<WrittenSubmission> findByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
+    /**
+     * NOTE: returns a List, not Optional/single — in practice there should only ever be one
+     * non-practice submission per exam+cycle+user, but legacy crash-created duplicates can exist,
+     * and a derived Optional-returning query throws IncorrectResultSizeDataAccessException the
+     * moment more than one row matches. The service layer picks the right one from the list.
+     */
+    List<WrittenSubmission> findAllByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
             String examId, String userId, Integer cycleNumber);
 
     List<WrittenSubmission> findByExamIdAndUserIdAndIsPracticeModeTrueOrderByAttemptNumberDesc(
