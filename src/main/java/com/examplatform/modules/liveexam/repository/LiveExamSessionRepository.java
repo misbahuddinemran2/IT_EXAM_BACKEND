@@ -20,11 +20,15 @@ public interface LiveExamSessionRepository extends JpaRepository<LiveExamSession
             "AND s.disconnectedAt <= :cutoff")
     List<LiveExamSession> findExpiredDisconnectedSessions(@Param("cutoff") LocalDateTime cutoff);
 
-Optional<LiveExamSession> findByExamIdAndUserIdAndCycleNumber(
-        String examId, String userId, int cycleNumber);
+    Optional<LiveExamSession> findByExamIdAndUserIdAndCycleNumber(
+            String examId, String userId, int cycleNumber);
 
-boolean existsByExamIdAndUserId(String examId, String userId); // যেকোনো cycle-এ attempt আছে কিনা
-    
+    boolean existsByExamIdAndUserId(String examId, String userId); // যেকোনো cycle-এ attempt আছে কিনা
+
+    // exam republish হয়ে cycleNumber বদলে গেলেও, ইউজারের যেকোনো cycle-এর মধ্যে
+    // সবচেয়ে সাম্প্রতিক session খুঁজে বের করার জন্য (attemptStatus/marks দেখাতে ব্যবহার হবে)
+    Optional<LiveExamSession> findTopByExamIdAndUserIdOrderByCreatedAtDesc(String examId, String userId);
+
     // Duration শেষ হয়ে যাওয়া কিন্তু এখনো IN_PROGRESS/DISCONNECTED (safety net)
     @Query("SELECT s FROM LiveExamSession s WHERE s.status IN ('IN_PROGRESS','DISCONNECTED') " +
             "AND s.expiresAt <= :now")
