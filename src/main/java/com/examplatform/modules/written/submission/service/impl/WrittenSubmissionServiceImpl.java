@@ -61,19 +61,29 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
         // If a submission already exists for this exam+cycle (any status), resume it instead of
         // creating a duplicate. This handles app crashes / accidental exits mid-exam gracefully —
         // the student just picks up where they left off with the same submissionId.
-        java.util.Optional<WrittenSubmission> existing = submissionRepository
-                .findByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
+        // Legacy crash-created duplicate rows can exist, so we look at ALL of them and pick the
+        // most relevant one: a finished attempt takes priority (blocks retry); otherwise resume
+        // whichever IN_PROGRESS/NOT_STARTED row was created most recently.
+        List<WrittenSubmission> existingList = submissionRepository
+                .findAllByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
                         exam.getId(), userId, exam.getCycleNumber());
 
-        if (existing.isPresent()) {
-            WrittenSubmission submission = existing.get();
-            if (submission.getStatus() == SubmissionStatus.SUBMITTED
-                    || submission.getStatus() == SubmissionStatus.UNDER_REVIEW
-                    || submission.getStatus() == SubmissionStatus.COMPLETED) {
+        if (!existingList.isEmpty()) {
+            WrittenSubmission finished = existingList.stream()
+                    .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED
+                            || s.getStatus() == SubmissionStatus.UNDER_REVIEW
+                            || s.getStatus() == SubmissionStatus.COMPLETED)
+                    .findFirst()
+                    .orElse(null);
+
+            if (finished != null) {
                 throw new IllegalStateException("You have already attempted this exam in the current cycle");
             }
-            // NOT_STARTED / IN_PROGRESS — safe to resume
-            return submissionMapper.toResponse(submission);
+
+            WrittenSubmission mostRecent = existingList.stream()
+                    .max(java.util.Comparator.comparing(WrittenSubmission::getCreatedAt))
+                    .orElseThrow();
+            return submissionMapper.toResponse(mostRecent);
         }
 
         WrittenSubmission submission = WrittenSubmission.builder()
@@ -88,6 +98,7 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
 
         return submissionMapper.toResponse(submissionRepository.save(submission));
     }
+    
     
 
     private SubmissionResponse startPracticeAttempt(WrittenExam exam, String userId) {
