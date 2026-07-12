@@ -140,8 +140,12 @@ public class WrittenExamServiceImpl implements WrittenExamService {
         return liveExams.stream()
                 .map(exam -> {
                     boolean alreadyAttempted = submissionRepository
-                            .existsByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalse(
-                                    exam.getId(), userId, exam.getCycleNumber());
+                            .existsByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalseAndStatusIn(
+                                    exam.getId(), userId, exam.getCycleNumber(),
+                                    java.util.List.of(
+                                            com.examplatform.modules.written.submission.enums.SubmissionStatus.SUBMITTED,
+                                            com.examplatform.modules.written.submission.enums.SubmissionStatus.UNDER_REVIEW,
+                                            com.examplatform.modules.written.submission.enums.SubmissionStatus.COMPLETED));
                     return examMapper.toSummaryResponse(exam, alreadyAttempted);
                 })
                 .toList();
