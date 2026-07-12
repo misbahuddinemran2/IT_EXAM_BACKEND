@@ -137,7 +137,7 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
         return "OTHER";
     }
 
-    private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) { 
+private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
         List<ExamSubjectConfig> subjectConfigs = subjectConfigRepository.findByExamId(exam.getId());
         List<ExamTopicConfig> topicConfigs = topicConfigRepository.findByExamId(exam.getId());
 
@@ -168,6 +168,12 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
         boolean windowEnded = LocalDateTime.of(exam.getExamDate(), exam.getEndTime())
                 .isBefore(LocalDateTime.now(BD_ZONE));
 
+        // republish হয়ে cycleNumber বদলে গেলেও ইউজারের যেকোনো cycle-এর মধ্যে
+        // সবচেয়ে সাম্প্রতিক session খুঁজে বের করা হচ্ছে (cycle-specific lookup করলে
+        // republish এর পর পুরনো session miss হয়ে "শুরু করুন" ভুলভাবে দেখাত)
+        var latestSession = liveSessionRepository
+                .findTopByExamIdAndUserIdOrderByCreatedAtDesc(exam.getId(), userId);
+
         return LiveExamSummaryResponse.builder()
                 .id(exam.getId())
                 .name(exam.getName())
@@ -186,14 +192,17 @@ public LiveExamStartResponse getPracticeQuestions(String examId) {
                 .endTime(exam.getEndTime())
                 .targetLevels(exam.getTargetLevels())
                 .isPremiumOnly(exam.isPremiumOnly())
-                .attemptStatus(liveSessionRepository
-                        .findByExamIdAndUserIdAndCycleNumber(exam.getId(), userId, exam.getCycleNumber())
-                        .map(s -> s.getStatus().name())
-                        .orElse("NOT_STARTED"))
+                .attemptStatus(latestSession.map(s -> s.getStatus().name()).orElse("NOT_STARTED"))
+                .obtainedMarks(latestSession
+                        .filter(s -> s.getStatus() == LiveExamSession.Status.SUBMITTED
+                                || s.getStatus() == LiveExamSession.Status.AUTO_SUBMITTED)
+                        .map(LiveExamSession::getObtainedMarks)
+                        .orElse(null))
                 .windowEnded(windowEnded)
                 .build();
- 
+
     }
+    
     private boolean isVisibleToUser(Exam exam, String userLevel) {
         List<String> levels = exam.getTargetLevels();
         if (levels == null || levels.isEmpty() || levels.contains("ALL")) return true;
