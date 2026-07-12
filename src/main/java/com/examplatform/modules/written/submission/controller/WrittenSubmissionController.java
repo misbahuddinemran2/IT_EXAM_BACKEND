@@ -7,12 +7,16 @@ import com.examplatform.modules.written.submission.request.UploadSubmissionFileR
 import com.examplatform.modules.written.submission.response.SubmissionFileResponse;
 import com.examplatform.modules.written.submission.response.SubmissionResponse;
 import com.examplatform.modules.written.submission.service.WrittenSubmissionService;
+import com.examplatform.modules.written.submission.entity.WrittenSubmissionTranscript;
+import com.examplatform.modules.written.submission.repository.WrittenSubmissionTranscriptRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/written/submissions")
@@ -20,6 +24,7 @@ import java.util.List;
 public class WrittenSubmissionController {
 
     private final WrittenSubmissionService submissionService;
+    private final WrittenSubmissionTranscriptRepository transcriptRepository;
 
     @PostMapping("/start")
     public SubmissionResponse startExam(@RequestBody StartExamRequest request, Authentication auth) {
@@ -34,11 +39,6 @@ public class WrittenSubmissionController {
         return submissionService.uploadFile(submissionId, auth.getName(), request);
     }
 
-    /**
-     * TEXT-mode answer submission — one call can save/update multiple (question, part) text boxes
-     * at once (e.g. all 12 boxes for a 3-question exam), or the app can call this per box as the
-     * student types/saves each answer.
-     */
     @PostMapping("/{submissionId}/submit-text")
     public void submitTextAnswers(
             @PathVariable String submissionId,
@@ -68,5 +68,27 @@ public class WrittenSubmissionController {
     @GetMapping("/my")
     public List<SubmissionResponse> getMySubmissions(Authentication auth) {
         return submissionService.getMySubmissions(auth.getName());
+    }
+
+    /**
+     * Student's own answer script — their typed/transcribed text per question+part.
+     * Ownership is enforced by first calling getSubmissionById, which already throws if this
+     * submission doesn't belong to the logged-in student.
+     */
+    @GetMapping("/{submissionId}/transcript")
+    public List<Map<String, Object>> getMyTranscript(@PathVariable String submissionId, Authentication auth) {
+        submissionService.getSubmissionById(submissionId, auth.getName()); // ownership check, throws if not owner
+
+        List<WrittenSubmissionTranscript> transcripts = transcriptRepository.findBySubmissionId(submissionId);
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (WrittenSubmissionTranscript t : transcripts) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("questionId", t.getQuestion().getId());
+            item.put("questionOrder", t.getQuestion().getQuestionOrder());
+            item.put("part", t.getPart().name());
+            item.put("transcribedText", t.getTranscribedText());
+            result.add(item);
+        }
+        return result;
     }
 }
