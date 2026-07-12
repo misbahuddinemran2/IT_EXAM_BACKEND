@@ -169,10 +169,25 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .isBefore(LocalDateTime.now(BD_ZONE));
 
         // republish হয়ে cycleNumber বদলে গেলেও ইউজারের যেকোনো cycle-এর মধ্যে
-        // সবচেয়ে সাম্প্রতিক session খুঁজে বের করা হচ্ছে (cycle-specific lookup করলে
-        // republish এর পর পুরনো session miss হয়ে "শুরু করুন" ভুলভাবে দেখাত)
+        // সবচেয়ে সাম্প্রতিক session খুঁজে বের করা হচ্ছে
         var latestSession = liveSessionRepository
                 .findTopByExamIdAndUserIdOrderByCreatedAtDesc(exam.getId(), userId);
+
+        boolean isSubmitted = latestSession
+                .map(s -> s.getStatus() == LiveExamSession.Status.SUBMITTED
+                        || s.getStatus() == LiveExamSession.Status.AUTO_SUBMITTED)
+                .orElse(false);
+
+        // ছাত্র যে cycle-এ exam দিয়েছিল সেটা যদি বর্তমান cycle-এর চেয়ে পুরনো হয় (মানে exam
+        // এর মধ্যে republish হয়ে গেছে), তাহলে সেই ছাত্রের জন্য exam ইতিমধ্যে "চূড়ান্তভাবে শেষ" —
+        // তাই window শেষ হওয়ার জন্য অপেক্ষা না করিয়ে সাথে সাথে ফলাফল দেখানো হচ্ছে।
+        // বর্তমান cycle-এ attempt করলে আগের নিয়মেই (window শেষ না হওয়া পর্যন্ত অপেক্ষা) থাকবে,
+        // যাতে একই দিনে অন্য ছাত্রদের কাছে উত্তর leak না হয়।
+        boolean attemptedInOlderCycle = latestSession
+                .map(s -> s.getCycleNumber() < exam.getCycleNumber())
+                .orElse(false);
+
+        boolean resultAvailable = isSubmitted && (attemptedInOlderCycle || windowEnded);
 
         return LiveExamSummaryResponse.builder()
                 .id(exam.getId())
@@ -193,12 +208,9 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .targetLevels(exam.getTargetLevels())
                 .isPremiumOnly(exam.isPremiumOnly())
                 .attemptStatus(latestSession.map(s -> s.getStatus().name()).orElse("NOT_STARTED"))
-                .obtainedMarks(latestSession
-                        .filter(s -> s.getStatus() == LiveExamSession.Status.SUBMITTED
-                                || s.getStatus() == LiveExamSession.Status.AUTO_SUBMITTED)
-                        .map(LiveExamSession::getObtainedMarks)
-                        .orElse(null))
+                .obtainedMarks(isSubmitted ? latestSession.get().getObtainedMarks() : null)
                 .windowEnded(windowEnded)
+                .resultAvailable(resultAvailable)
                 .build();
 
     }
