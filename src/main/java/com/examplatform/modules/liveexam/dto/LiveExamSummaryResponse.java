@@ -1,4 +1,3 @@
-
 package com.examplatform.modules.liveexam.dto;
 
 import lombok.*;
@@ -34,8 +33,10 @@ public class LiveExamSummaryResponse {
 
     private List<String> targetLevels;
     private boolean isPremiumOnly;
-    
+
     private String attemptStatus;
     private boolean windowEnded;
-    
+
+    // নতুন: ছাত্র আগেই দিয়ে থাকলে তার প্রাপ্ত নম্বর (SUBMITTED/AUTO_SUBMITTED হলে ছাড়া null)
+    private BigDecimal obtainedMarks;
 }
