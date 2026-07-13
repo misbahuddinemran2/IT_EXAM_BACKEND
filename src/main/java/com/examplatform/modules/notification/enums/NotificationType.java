@@ -1,0 +1,12 @@
+package com.examplatform.modules.notification.enums;
+
+public enum NotificationType {
+    WRITTEN_EXAM_RESULT_PUBLISHED,
+    MCQ_EXAM_RESULT_PUBLISHED,
+    LIVE_EXAM_RESULT_PUBLISHED,
+    LIVE_EXAM_STARTING_SOON,
+    EXAM_REMINDER,
+    SUBSCRIPTION_EXPIRING,
+    GENERAL_ANNOUNCEMENT,
+    OTHER
+}
