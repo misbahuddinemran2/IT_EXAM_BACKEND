@@ -18,6 +18,8 @@ import com.examplatform.modules.written.settings.repository.WrittenSettingsRepos
 import com.examplatform.modules.written.submission.entity.WrittenSubmission;
 import com.examplatform.modules.written.submission.enums.SubmissionStatus;
 import com.examplatform.modules.written.submission.repository.WrittenSubmissionRepository;
+import com.examplatform.modules.exam.entity.UserNotification;
+import com.examplatform.modules.exam.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ public class WrittenEvaluationFinalizeService {
     private final WrittenQuestionRepository questionRepository;
     private final WrittenExamRepository examRepository;
     private final WrittenSettingsRepository settingsRepository;
+    private final NotificationService notificationService;
 
     private static final String SETTINGS_ID = "default";
 
@@ -114,7 +117,8 @@ public class WrittenEvaluationFinalizeService {
         String resultPublishMode = settingsRepository.findById(SETTINGS_ID)
                 .map(s -> s.getResultPublishMode())
                 .orElse("MANUAL");
-        if ("INSTANT".equalsIgnoreCase(resultPublishMode)) {
+        boolean instantPublish = "INSTANT".equalsIgnoreCase(resultPublishMode);
+        if (instantPublish) {
             savedEvaluation.setResultPublished(true);
         }
 
@@ -124,12 +128,19 @@ public class WrittenEvaluationFinalizeService {
         submission.setStatus(SubmissionStatus.COMPLETED);
         submissionRepository.save(submission);
 
+        // INSTANT মোডে finalize হওয়ার সাথে সাথেই ফলাফল প্রকাশিত হয়ে যায়, তাই তখনই notify করা হচ্ছে
+        if (instantPublish) {
+            sendResultNotification(submission, exam);
+        }
+
         return evaluationMapper.toResponse(savedEvaluation, detailRepository.findByEvaluationId(savedEvaluation.getId()));
     }
 
     @Transactional
     public int publishAllResultsForExam(String examId) {
         java.util.List<WrittenSubmission> submissions = submissionRepository.findByExamId(examId);
+
+        WrittenExam exam = examRepository.findById(examId).orElse(null);
 
         int publishedCount = 0;
         for (WrittenSubmission submission : submissions) {
@@ -141,6 +152,10 @@ public class WrittenEvaluationFinalizeService {
                 evaluation.setResultPublished(true);
                 evaluationRepository.save(evaluation);
                 publishedCount++;
+
+                if (exam != null) {
+                    sendResultNotification(submission, exam);
+                }
             }
         }
         return publishedCount;
@@ -167,6 +182,29 @@ public class WrittenEvaluationFinalizeService {
         evaluation.setResultPublished(true);
         evaluationRepository.save(evaluation);
 
+        WrittenSubmission submission = evaluation.getSubmission();
+        WrittenExam exam = examRepository.findById(submission.getExamId()).orElse(null);
+        if (exam != null) {
+            sendResultNotification(submission, exam);
+        }
+
         return evaluationMapper.toResponse(evaluation, detailRepository.findByEvaluationId(evaluation.getId()));
+    }
+
+    /**
+     * Written exam এর ফলাফল প্রকাশ হলে ছাত্রকে notification পাঠানো —
+     * সবখানে একই generic NotificationService ব্যবহার করা হচ্ছে (MCQ/Live exam এও এটাই ব্যবহৃত হয়)
+     */
+    private void sendResultNotification(WrittenSubmission submission, WrittenExam exam) {
+        try {
+            notificationService.sendNotification(
+                    submission.getUserId(),
+                    UserNotification.NotificationType.EXAM_RESULT,
+                    "রেজাল্ট প্রকাশিত হয়েছে",
+                    "\"" + exam.getTitle() + "\" পরীক্ষার ফলাফল প্রকাশিত হয়েছে। এখনই দেখুন।"
+            );
+        } catch (Exception e) {
+            // Notification পাঠাতে ব্যর্থ হলেও publish প্রক্রিয়া যেন আটকে না যায়
+        }
     }
 }
