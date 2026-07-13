@@ -1,4 +1,3 @@
-
 package com.examplatform.modules.exam.service;
 
 import com.examplatform.modules.exam.dto.NotificationResponse;
@@ -6,6 +5,8 @@ import com.examplatform.modules.exam.entity.UserNotification;
 import com.examplatform.modules.exam.repository.UserNotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -51,8 +52,15 @@ public class NotificationService {
                 });
     }
 
+    // পুরনো মেথড — backward compatible রাখা হয়েছে, expiryDate ছাড়া কল করলে null যাবে
     public void sendNotification(String userId, UserNotification.NotificationType type,
                                  String title, String body) {
+        sendNotification(userId, type, title, body, null);
+    }
+
+    // নতুন মেথড — expiryDate (delete date) সহ, optional (null দিলে auto-delete হবে না)
+    public void sendNotification(String userId, UserNotification.NotificationType type,
+                                 String title, String body, LocalDateTime expiryDate) {
         UserNotification notification = UserNotification.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
@@ -61,8 +69,19 @@ public class NotificationService {
                 .body(body)
                 .isRead(false)
                 .deliveryChannel(UserNotification.DeliveryChannel.IN_APP)
+                .expiryDate(expiryDate)
                 .build();
 
         userNotificationRepository.save(notification);
+    }
+
+    // Admin panel এ সব notification দেখানোর জন্য
+    public List<UserNotification> getAllNotifications() {
+        return userNotificationRepository.findAllOrderBySentAtDesc();
+    }
+
+    // Admin manual delete
+    public void deleteNotification(String notificationId) {
+        userNotificationRepository.deleteById(notificationId);
     }
 }
