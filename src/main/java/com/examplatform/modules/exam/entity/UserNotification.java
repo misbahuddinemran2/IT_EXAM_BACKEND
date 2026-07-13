@@ -52,7 +52,13 @@ public class UserNotification {
 
     @Column(name = "read_at")
     private LocalDateTime readAt;
+@Column(name = "expiry_date")
+private LocalDateTime expiryDate;
 
+public LocalDateTime getExpiryDate() { return expiryDate; }
+public void setExpiryDate(LocalDateTime expiryDate) { this.expiryDate = expiryDate; }
+        
+        
     public enum NotificationType {
         EXAM_REMINDER,
         WEAK_TOPIC_ALERT,
