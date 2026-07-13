@@ -36,6 +36,15 @@ public class AdminNotificationController {
             throw new IllegalArgumentException("Message আবশ্যক");
         }
 
+        LocalDateTime expiryDate = null;
+        if (request.getDeleteAt() != null && !request.getDeleteAt().isBlank()) {
+            try {
+                expiryDate = LocalDateTime.parse(request.getDeleteAt());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("deleteAt ফরম্যাট ভুল, ISO datetime দিন (yyyy-MM-ddTHH:mm:ss)");
+            }
+        }
+
         List<String> userIds = resolveTargetUserIds(request);
 
         for (String userId : userIds) {
@@ -43,12 +52,26 @@ public class AdminNotificationController {
                     userId,
                     UserNotification.NotificationType.SYSTEM,
                     request.getTitle(),
-                    request.getBody()
+                    request.getBody(),
+                    expiryDate
             );
         }
 
         Map<String, Object> result = new HashMap<>();
         result.put("recipientCount", userIds.size());
+        return result;
+    }
+
+    @GetMapping
+    public List<UserNotification> getAllNotifications() {
+        return notificationService.getAllNotifications();
+    }
+
+    @DeleteMapping("/{id}")
+    public Map<String, Object> deleteNotification(@PathVariable String id) {
+        notificationService.deleteNotification(id);
+        Map<String, Object> result = new HashMap<>();
+        result.put("deleted", true);
         return result;
     }
 
