@@ -1,1 +1,1 @@
-ALTER TABLE user_notifications ADD COLUMN expiry_date TIMESTAMP NULL;
+ALTER TABLE user_notifications ADD COLUMN IF NOT EXISTS expiry_date TIMESTAMP NULL;
