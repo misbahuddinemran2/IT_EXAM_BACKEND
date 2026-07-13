@@ -34,5 +34,10 @@ public interface UserRepository extends JpaRepository<User, String> {
             "u.phone LIKE CONCAT('%', :kw, '%')")
     List<User> searchUsers(@Param("kw") String kw);
 
+@Query("SELECT u.id FROM User u")
+    List<String> findAllUserIds();
 
+    @Query("SELECT u.id FROM User u WHERE u.educationLevel = ?1")
+    List<String> findUserIdsByEducationLevel(User.EducationLevel educationLevel);
+    
 }
