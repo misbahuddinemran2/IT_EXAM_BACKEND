@@ -1,11 +1,13 @@
 package com.examplatform.modules.written.submission.controller;
 
+import com.examplatform.modules.written.submission.enums.FileType;
 import com.examplatform.modules.written.submission.request.StartExamRequest;
 import com.examplatform.modules.written.submission.request.SubmitExamRequest;
 import com.examplatform.modules.written.submission.request.SubmitTextAnswersRequest;
 import com.examplatform.modules.written.submission.request.UploadSubmissionFileRequest;
 import com.examplatform.modules.written.submission.response.SubmissionFileResponse;
 import com.examplatform.modules.written.submission.response.SubmissionResponse;
+import com.examplatform.modules.written.submission.service.ImageKitUploadService;
 import com.examplatform.modules.written.submission.service.WrittenSubmissionService;
 import com.examplatform.modules.written.submission.entity.WrittenSubmissionTranscript;
 import com.examplatform.modules.written.submission.repository.WrittenSubmissionTranscriptRepository;
@@ -13,6 +15,7 @@ import com.examplatform.modules.written.submission.repository.WrittenSubmissionT
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,17 +28,28 @@ public class WrittenSubmissionController {
 
     private final WrittenSubmissionService submissionService;
     private final WrittenSubmissionTranscriptRepository transcriptRepository;
+    private final ImageKitUploadService imageKitUploadService;
 
     @PostMapping("/start")
     public SubmissionResponse startExam(@RequestBody StartExamRequest request, Authentication auth) {
         return submissionService.startExam(auth.getName(), request);
     }
 
-    @PostMapping("/{submissionId}/upload")
+    @PostMapping(value = "/{submissionId}/upload", consumes = "multipart/form-data")
     public SubmissionFileResponse uploadFile(
             @PathVariable String submissionId,
-            @RequestBody UploadSubmissionFileRequest request,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("pageNumber") Integer pageNumber,
+            @RequestParam("fileType") FileType fileType,
             Authentication auth) {
+
+        String fileUrl = imageKitUploadService.uploadFile(file, "written-submissions/" + submissionId);
+
+        UploadSubmissionFileRequest request = new UploadSubmissionFileRequest();
+        request.setPageNumber(pageNumber);
+        request.setFileUrl(fileUrl);
+        request.setFileType(fileType);
+
         return submissionService.uploadFile(submissionId, auth.getName(), request);
     }
 
