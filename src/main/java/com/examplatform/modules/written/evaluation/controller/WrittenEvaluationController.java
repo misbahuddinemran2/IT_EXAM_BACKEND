@@ -90,10 +90,10 @@ public class WrittenEvaluationController {
                 default -> null;
             };
             String modelAnswer = switch (part) {
-                case "A" -> question.getPartAModelAnswer();
-                case "B" -> question.getPartBModelAnswer();
-                case "C" -> question.getPartCModelAnswer();
-                case "D" -> question.getPartDModelAnswer();
+                case "A" -> question.getPartAModelAnswer() != null ? question.getPartAModelAnswer() : question.getPartAAiAnswer();
+                case "B" -> question.getPartBModelAnswer() != null ? question.getPartBModelAnswer() : question.getPartBAiAnswer();
+                case "C" -> question.getPartCModelAnswer() != null ? question.getPartCModelAnswer() : question.getPartCAiAnswer();
+                case "D" -> question.getPartDModelAnswer() != null ? question.getPartDModelAnswer() : question.getPartDAiAnswer();
                 default -> null;
             };
 
