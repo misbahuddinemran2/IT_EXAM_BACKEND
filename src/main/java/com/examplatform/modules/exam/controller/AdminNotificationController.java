@@ -3,6 +3,7 @@ package com.examplatform.modules.exam.controller;
 import com.examplatform.modules.exam.dto.request.AdminSendNotificationRequest;
 import com.examplatform.modules.exam.entity.UserNotification;
 import com.examplatform.modules.exam.repository.ExamSessionRepository;
+import com.examplatform.modules.exam.repository.NotificationGroupProjection;
 import com.examplatform.modules.exam.service.NotificationService;
 import com.examplatform.modules.user.entity.User;
 import com.examplatform.modules.user.repository.UserRepository;
@@ -11,6 +12,7 @@ import com.examplatform.modules.written.submission.repository.WrittenSubmissionR
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +48,7 @@ public class AdminNotificationController {
         }
 
         List<String> userIds = resolveTargetUserIds(request);
+        String batchId = UUID.randomUUID().toString();
 
         for (String userId : userIds) {
             notificationService.sendNotification(
@@ -53,7 +56,8 @@ public class AdminNotificationController {
                     UserNotification.NotificationType.SYSTEM,
                     request.getTitle(),
                     request.getBody(),
-                    expiryDate
+                    expiryDate,
+                    batchId
             );
         }
 
@@ -62,14 +66,33 @@ public class AdminNotificationController {
         return result;
     }
 
+    // Admin panel এ গ্রুপ করা লিস্ট (একই ব্যাচ একটা কার্ড হিসেবে দেখাবে)
+    @GetMapping("/grouped")
+    public List<Map<String, Object>> getGroupedNotifications() {
+        List<NotificationGroupProjection> grouped = notificationService.getGroupedNotifications();
+        return grouped.stream().map(g -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("batchKey", g.getBatchKey());
+            m.put("title", g.getTitle());
+            m.put("body", g.getBody());
+            m.put("type", g.getType());
+            m.put("sentAt", g.getSentAt());
+            m.put("expiryDate", g.getExpiryDate());
+            m.put("recipientCount", g.getRecipientCount());
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    // পুরনো raw list (দরকার হলে রেখে দেওয়া হলো, ব্যবহার নাও হতে পারে)
     @GetMapping
     public List<UserNotification> getAllNotifications() {
         return notificationService.getAllNotifications();
     }
 
-    @DeleteMapping("/{id}")
-    public Map<String, Object> deleteNotification(@PathVariable String id) {
-        notificationService.deleteNotification(id);
+    // batchKey দিয়ে পুরো ব্যাচ (সব recipient) একসাথে ডিলিট
+    @DeleteMapping("/batch/{batchKey}")
+    public Map<String, Object> deleteBatch(@PathVariable String batchKey) {
+        notificationService.deleteBatch(batchKey);
         Map<String, Object> result = new HashMap<>();
         result.put("deleted", true);
         return result;
