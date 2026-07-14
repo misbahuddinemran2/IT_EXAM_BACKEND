@@ -28,6 +28,9 @@ public interface WrittenExamService {
 
     List<ExamSummaryResponse> getLiveExamsForStudent(String userId, String educationLevel);
 
+    // নতুন: সময় শেষ হয়ে যাওয়া (LIVE status কিন্তু endTime পার হয়ে গেছে) exam গুলো — practice এর জন্য
+    List<ExamSummaryResponse> getFinishedExamsForStudent(String userId, String educationLevel);
+
     List<ExamResponse> getAllExamsForAdmin();
 
     void deleteExam(String examId);
