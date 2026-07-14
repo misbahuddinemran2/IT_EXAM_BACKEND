@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -133,16 +134,41 @@ public class WrittenExamServiceImpl implements WrittenExamService {
         return examMapper.toResponse(getExamOrThrow(examId));
     }
 
+    // Hybrid filter: status=LIVE এবং এখনকার সময় start-end window এর মধ্যে থাকলেই দেখাবে
     @Override
     public List<ExamSummaryResponse> getLiveExamsForStudent(String userId, String educationLevel) {
-        List<WrittenExam> liveExams = examRepository.findByEducationLevelAndStatus(educationLevel, ExamStatus.LIVE);
+        LocalDateTime now = LocalDateTime.now();
+        List<WrittenExam> liveExams = examRepository
+                .findByEducationLevelAndStatusAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
+                        educationLevel, ExamStatus.LIVE, now, now);
 
         return liveExams.stream()
                 .map(exam -> {
                     boolean alreadyAttempted = submissionRepository
                             .existsByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalseAndStatusIn(
                                     exam.getId(), userId, exam.getCycleNumber(),
-                                    java.util.List.of(
+                                    List.of(
+                                            com.examplatform.modules.written.submission.enums.SubmissionStatus.SUBMITTED,
+                                            com.examplatform.modules.written.submission.enums.SubmissionStatus.UNDER_REVIEW,
+                                            com.examplatform.modules.written.submission.enums.SubmissionStatus.COMPLETED));
+                    return examMapper.toSummaryResponse(exam, alreadyAttempted);
+                })
+                .toList();
+    }
+
+    // status=LIVE কিন্তু endTime পার হয়ে গেছে এমন exam — সমাপ্ত/প্র্যাকটিস স্ক্রিনের জন্য
+    @Override
+    public List<ExamSummaryResponse> getFinishedExamsForStudent(String userId, String educationLevel) {
+        LocalDateTime now = LocalDateTime.now();
+        List<WrittenExam> finishedExams = examRepository
+                .findByEducationLevelAndStatusAndEndTimeBefore(educationLevel, ExamStatus.LIVE, now);
+
+        return finishedExams.stream()
+                .map(exam -> {
+                    boolean alreadyAttempted = submissionRepository
+                            .existsByExamIdAndUserIdAndCycleNumberAndIsPracticeModeFalseAndStatusIn(
+                                    exam.getId(), userId, exam.getCycleNumber(),
+                                    List.of(
                                             com.examplatform.modules.written.submission.enums.SubmissionStatus.SUBMITTED,
                                             com.examplatform.modules.written.submission.enums.SubmissionStatus.UNDER_REVIEW,
                                             com.examplatform.modules.written.submission.enums.SubmissionStatus.COMPLETED));
