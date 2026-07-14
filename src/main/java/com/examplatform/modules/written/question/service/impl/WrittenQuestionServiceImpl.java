@@ -1,6 +1,7 @@
 package com.examplatform.modules.written.question.service.impl;
 
 import com.examplatform.modules.written.exam.entity.WrittenExam;
+import com.examplatform.modules.written.exam.enums.ExamStatus;
 import com.examplatform.modules.written.exam.repository.WrittenExamRepository;
 import com.examplatform.modules.written.question.entity.WrittenQuestion;
 import com.examplatform.modules.written.question.mapper.WrittenQuestionMapper;
@@ -10,18 +11,24 @@ import com.examplatform.modules.written.question.request.ReorderQuestionsRequest
 import com.examplatform.modules.written.question.request.UpdateQuestionRequest;
 import com.examplatform.modules.written.question.response.QuestionAdminResponse;
 import com.examplatform.modules.written.question.response.QuestionStudentResponse;
+import com.examplatform.modules.written.question.response.QuestionWithAnswerResponse;
 import com.examplatform.modules.written.question.service.WrittenQuestionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class WrittenQuestionServiceImpl implements WrittenQuestionService {
+
+    private static final Set<ExamStatus> FINISHED_ELIGIBLE_STATUSES = EnumSet.of(ExamStatus.LIVE, ExamStatus.ENDED, ExamStatus.ARCHIVED);
 
     private final WrittenQuestionRepository questionRepository;
     private final WrittenQuestionMapper questionMapper;
@@ -95,6 +102,71 @@ public class WrittenQuestionServiceImpl implements WrittenQuestionService {
     @Override
     public QuestionAdminResponse getQuestionByIdForAdmin(String questionId) {
         return questionMapper.toAdminResponse(getQuestionOrThrow(questionId));
+    }
+
+    @Override
+    public List<QuestionWithAnswerResponse> getQuestionsWithAnswers(String examId) {
+        WrittenExam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new NoSuchElementException("Exam not found: " + examId));
+
+        boolean isFinished = FINISHED_ELIGIBLE_STATUSES.contains(exam.getStatus())
+                && exam.getEndTime() != null
+                && exam.getEndTime().isBefore(LocalDateTime.now());
+
+        if (!isFinished) {
+            throw new IllegalStateException("Exam is not finished yet: " + examId);
+        }
+
+        List<WrittenQuestion> questions = questionRepository.findByExamIdOrderByQuestionOrderAsc(examId);
+
+        return questions.stream()
+                .map(this::toQuestionWithAnswerResponse)
+                .toList();
+    }
+
+    private QuestionWithAnswerResponse toQuestionWithAnswerResponse(WrittenQuestion q) {
+        return QuestionWithAnswerResponse.builder()
+                .id(q.getId())
+                .questionOrder(q.getQuestionOrder())
+                .stimulus(q.getStimulus())
+                .stimulusBn(q.getStimulusBn())
+
+                .partAQuestion(q.getPartAQuestion())
+                .partAAnswer(resolveAnswer(q.getPartAModelAnswer(), q.getPartAAiAnswer()))
+                .partAIsAi(isAiAnswer(q.getPartAModelAnswer(), q.getPartAAiAnswer()))
+                .partAMaxMark(q.getPartAMaxMark())
+
+                .partBQuestion(q.getPartBQuestion())
+                .partBAnswer(resolveAnswer(q.getPartBModelAnswer(), q.getPartBAiAnswer()))
+                .partBIsAi(isAiAnswer(q.getPartBModelAnswer(), q.getPartBAiAnswer()))
+                .partBMaxMark(q.getPartBMaxMark())
+
+                .partCQuestion(q.getPartCQuestion())
+                .partCAnswer(resolveAnswer(q.getPartCModelAnswer(), q.getPartCAiAnswer()))
+                .partCIsAi(isAiAnswer(q.getPartCModelAnswer(), q.getPartCAiAnswer()))
+                .partCMaxMark(q.getPartCMaxMark())
+
+                .partDQuestion(q.getPartDQuestion())
+                .partDAnswer(resolveAnswer(q.getPartDModelAnswer(), q.getPartDAiAnswer()))
+                .partDIsAi(isAiAnswer(q.getPartDModelAnswer(), q.getPartDAiAnswer()))
+                .partDMaxMark(q.getPartDMaxMark())
+
+                .totalMaxMark(q.getTotalMaxMark())
+                .build();
+    }
+
+    private String resolveAnswer(String modelAnswer, String aiAnswer) {
+        if (modelAnswer != null && !modelAnswer.isBlank()) {
+            return modelAnswer;
+        }
+        return aiAnswer;
+    }
+
+    private Boolean isAiAnswer(String modelAnswer, String aiAnswer) {
+        if (modelAnswer != null && !modelAnswer.isBlank()) {
+            return false;
+        }
+        return aiAnswer != null && !aiAnswer.isBlank();
     }
 
     private WrittenQuestion getQuestionOrThrow(String questionId) {
