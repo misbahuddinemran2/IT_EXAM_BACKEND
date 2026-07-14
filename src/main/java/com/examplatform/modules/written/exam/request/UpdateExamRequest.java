@@ -41,4 +41,8 @@ public class UpdateExamRequest {
     private String partBMode;
     private String partCMode;
     private String partDMode;
+
+    // Practice control settings (admin configurable per exam)
+    private Boolean practiceEnabled;
+    private Boolean showResultInPractice;
 }
