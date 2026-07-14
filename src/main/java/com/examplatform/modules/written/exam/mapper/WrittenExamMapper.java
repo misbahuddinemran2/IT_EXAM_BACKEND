@@ -150,6 +150,8 @@ public class WrittenExamMapper {
                 .endTime(exam.getEndTime())
                 .status(exam.getStatus().name())
                 .alreadyAttemptedThisCycle(alreadyAttemptedThisCycle)
+                .practiceEnabled(exam.getPracticeEnabled())
+                .showResultInPractice(exam.getShowResultInPractice())
                 .build();
     }
 
