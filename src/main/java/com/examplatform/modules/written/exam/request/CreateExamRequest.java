@@ -46,4 +46,8 @@ public class CreateExamRequest {
     private String partBMode;
     private String partCMode;
     private String partDMode;
+
+    // Practice control settings (admin configurable per exam)
+    private Boolean practiceEnabled = true;
+    private Boolean showResultInPractice = true;
 }
