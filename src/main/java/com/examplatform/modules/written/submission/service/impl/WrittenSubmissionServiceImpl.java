@@ -83,7 +83,7 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
             WrittenSubmission mostRecent = existingList.stream()
                     .max(java.util.Comparator.comparing(WrittenSubmission::getCreatedAt))
                     .orElseThrow();
-            return submissionMapper.toResponse(mostRecent);
+            return submissionMapper.toResponse(mostRecent, exam);
         }
 
         WrittenSubmission submission = WrittenSubmission.builder()
@@ -96,14 +96,18 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
                 .isPracticeMode(false)
                 .build();
 
-        return submissionMapper.toResponse(submissionRepository.save(submission));
+        return submissionMapper.toResponse(submissionRepository.save(submission), exam);
     }
-    
-    
+
+
 
     private SubmissionResponse startPracticeAttempt(WrittenExam exam, String userId) {
         if (exam.getStatus() != ExamStatus.ENDED && exam.getStatus() != ExamStatus.ARCHIVED) {
             throw new IllegalStateException("Practice is only allowed on ended/archived exams");
+        }
+
+        if (Boolean.FALSE.equals(exam.getPracticeEnabled())) {
+            throw new IllegalStateException("Practice is not enabled for this exam");
         }
 
         long previousPracticeCount = submissionRepository
@@ -119,7 +123,7 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
                 .isPracticeMode(true)
                 .build();
 
-        return submissionMapper.toResponse(submissionRepository.save(submission));
+        return submissionMapper.toResponse(submissionRepository.save(submission), exam);
     }
 
     @Override
@@ -201,12 +205,20 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
         submission.setStatus(SubmissionStatus.SUBMITTED);
         submission.setSubmittedAt(LocalDateTime.now());
 
-        return submissionMapper.toResponse(submissionRepository.save(submission));
+        WrittenSubmission saved = submissionRepository.save(submission);
+        WrittenExam exam = examRepository.findById(saved.getExamId())
+                .orElseThrow(() -> new NoSuchElementException("Exam not found: " + saved.getExamId()));
+
+        return submissionMapper.toResponse(saved, exam);
     }
 
     @Override
     public SubmissionResponse getSubmissionById(String submissionId, String userId) {
-        return submissionMapper.toResponse(getOwnedSubmissionOrThrow(submissionId, userId));
+        WrittenSubmission submission = getOwnedSubmissionOrThrow(submissionId, userId);
+        WrittenExam exam = examRepository.findById(submission.getExamId())
+                .orElseThrow(() -> new NoSuchElementException("Exam not found: " + submission.getExamId()));
+
+        return submissionMapper.toResponse(submission, exam);
     }
 
     @Override
@@ -220,7 +232,10 @@ public class WrittenSubmissionServiceImpl implements WrittenSubmissionService {
     @Override
     public List<SubmissionResponse> getMySubmissions(String userId) {
         return submissionRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(submissionMapper::toResponse)
+                .map(s -> {
+                    WrittenExam exam = examRepository.findById(s.getExamId()).orElse(null);
+                    return exam != null ? submissionMapper.toResponse(s, exam) : submissionMapper.toResponse(s);
+                })
                 .toList();
     }
 
