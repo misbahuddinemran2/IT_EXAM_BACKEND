@@ -2,6 +2,7 @@ package com.examplatform.modules.exam.service;
 
 import com.examplatform.modules.exam.dto.NotificationResponse;
 import com.examplatform.modules.exam.entity.UserNotification;
+import com.examplatform.modules.exam.repository.NotificationGroupProjection;
 import com.examplatform.modules.exam.repository.UserNotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,15 +53,21 @@ public class NotificationService {
                 });
     }
 
-    // পুরনো মেথড — backward compatible রাখা হয়েছে, expiryDate ছাড়া কল করলে null যাবে
+    // পুরনো মেথড — backward compatible
     public void sendNotification(String userId, UserNotification.NotificationType type,
                                  String title, String body) {
-        sendNotification(userId, type, title, body, null);
+        sendNotification(userId, type, title, body, null, null);
     }
 
-    // নতুন মেথড — expiryDate (delete date) সহ, optional (null দিলে auto-delete হবে না)
+    // expiryDate সহ (batchId ছাড়া)
     public void sendNotification(String userId, UserNotification.NotificationType type,
                                  String title, String body, LocalDateTime expiryDate) {
+        sendNotification(userId, type, title, body, expiryDate, null);
+    }
+
+    // পূর্ণ ভার্সন — batchId সহ, একই "send" এ পাঠানো সব notification কে একসাথে গ্রুপ করার জন্য
+    public void sendNotification(String userId, UserNotification.NotificationType type,
+                                 String title, String body, LocalDateTime expiryDate, String batchId) {
         UserNotification notification = UserNotification.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
@@ -70,18 +77,19 @@ public class NotificationService {
                 .isRead(false)
                 .deliveryChannel(UserNotification.DeliveryChannel.IN_APP)
                 .expiryDate(expiryDate)
+                .batchId(batchId)
                 .build();
 
         userNotificationRepository.save(notification);
     }
 
-    // Admin panel এ সব notification দেখানোর জন্য
-    public List<UserNotification> getAllNotifications() {
-        return userNotificationRepository.findAllOrderBySentAtDesc();
+    // Admin panel এ গ্রুপ করা লিস্ট (একই ব্যাচ একবার, recipientCount সহ)
+    public List<NotificationGroupProjection> getGroupedNotifications() {
+        return userNotificationRepository.findGroupedNotifications();
     }
 
-    // Admin manual delete
-    public void deleteNotification(String notificationId) {
-        userNotificationRepository.deleteById(notificationId);
+    // পুরো batch (বা single notification) ডিলিট
+    public void deleteBatch(String batchKey) {
+        userNotificationRepository.deleteByBatchKey(batchKey);
     }
 }
