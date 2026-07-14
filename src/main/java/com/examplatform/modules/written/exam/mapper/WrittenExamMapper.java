@@ -43,7 +43,9 @@ public class WrittenExamMapper {
                 .aiProvider(resolveAiProvider(evaluationMode, req.getAiProvider()))
                 .status(ExamStatus.DRAFT)
                 .cycleNumber(1)
-                .totalMarks(0);
+                .totalMarks(0)
+                .practiceEnabled(req.getPracticeEnabled() != null ? req.getPracticeEnabled() : true)
+                .showResultInPractice(req.getShowResultInPractice() != null ? req.getShowResultInPractice() : true);
 
         applyPartModes(builder, evaluationMode, req.getPartAMode(), req.getPartBMode(),
                 req.getPartCMode(), req.getPartDMode());
@@ -103,6 +105,9 @@ public class WrittenExamMapper {
             exam.setPartDMode(uniform);
         }
 
+        if (req.getPracticeEnabled() != null) exam.setPracticeEnabled(req.getPracticeEnabled());
+        if (req.getShowResultInPractice() != null) exam.setShowResultInPractice(req.getShowResultInPractice());
+
         if (req.getSubjectId() != null) exam.setSubject(findSubject(req.getSubjectId()));
         if (req.getChapterId() != null) exam.setChapter(findChapter(req.getChapterId()));
         if (req.getTopicId() != null) exam.setTopic(findTopic(req.getTopicId()));
@@ -135,6 +140,8 @@ public class WrittenExamMapper {
                 .partDMode(exam.getPartDMode() != null ? exam.getPartDMode().name() : null)
                 .createdAt(exam.getCreatedAt())
                 .updatedAt(exam.getUpdatedAt())
+                .practiceEnabled(exam.getPracticeEnabled())
+                .showResultInPractice(exam.getShowResultInPractice())
                 .build();
     }
 
