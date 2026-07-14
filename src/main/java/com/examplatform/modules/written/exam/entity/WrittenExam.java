@@ -102,6 +102,14 @@ public class WrittenExam {
     @Builder.Default
     private PartEvaluationMode partDMode = PartEvaluationMode.MANUAL;
 
+
+    @Column(name = "practice_enabled", nullable = false)
+    @Builder.Default
+    private Boolean practiceEnabled = true;
+
+    @Column(name = "show_result_in_practice", nullable = false)
+    @Builder.Default
+    private Boolean showResultInPractice = false;
     @Column(name = "created_by_admin_id", length = 36)
     private String createdByAdminId;
 
