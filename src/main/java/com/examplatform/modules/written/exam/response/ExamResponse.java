@@ -44,4 +44,7 @@ public class ExamResponse {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private Boolean practiceEnabled;
+    private Boolean showResultInPractice;
 }
