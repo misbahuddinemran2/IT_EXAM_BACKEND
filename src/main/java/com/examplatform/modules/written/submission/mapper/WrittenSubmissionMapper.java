@@ -1,5 +1,6 @@
 package com.examplatform.modules.written.submission.mapper;
 
+import com.examplatform.modules.written.exam.entity.WrittenExam;
 import com.examplatform.modules.written.submission.entity.WrittenSubmission;
 import com.examplatform.modules.written.submission.entity.WrittenSubmissionFile;
 import com.examplatform.modules.written.submission.response.SubmissionFileResponse;
@@ -23,6 +24,25 @@ public class WrittenSubmissionMapper {
                 .isPracticeMode(s.isPracticeMode())
                 .createdAt(s.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * Exam-aware overload — hides totalObtainedMark when this is a practice submission
+     * and the exam's showResultInPractice is false. Use this whenever the exam context
+     * is available (e.g. startExam, submitExam, getSubmissionById), so practice students
+     * don't see marks the admin has chosen to withhold.
+     */
+    public SubmissionResponse toResponse(WrittenSubmission s, WrittenExam exam) {
+        SubmissionResponse response = toResponse(s);
+
+        boolean shouldHideMark = s.isPracticeMode()
+                && Boolean.FALSE.equals(exam.getShowResultInPractice());
+
+        if (shouldHideMark) {
+            response.setTotalObtainedMark(null);
+        }
+
+        return response;
     }
 
     public SubmissionFileResponse toFileResponse(WrittenSubmissionFile f) {
