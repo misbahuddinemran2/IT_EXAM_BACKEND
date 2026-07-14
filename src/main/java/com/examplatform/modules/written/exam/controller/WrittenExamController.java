@@ -23,4 +23,12 @@ public class WrittenExamController {
         String userId = auth.getName();
         return examService.getLiveExamsForStudent(userId, educationLevel);
     }
+
+    @GetMapping("/finished")
+    public List<ExamSummaryResponse> getFinishedExams(
+            @RequestParam String educationLevel,
+            Authentication auth) {
+        String userId = auth.getName();
+        return examService.getFinishedExamsForStudent(userId, educationLevel);
+    }
 }
