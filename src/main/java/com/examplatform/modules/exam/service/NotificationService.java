@@ -92,4 +92,7 @@ public class NotificationService {
     public void deleteBatch(String batchKey) {
         userNotificationRepository.deleteByBatchKey(batchKey);
     }
+    public List<UserNotification> getAllNotifications() {
+        return userNotificationRepository.findAllOrderBySentAtDesc();
+    }
 }
