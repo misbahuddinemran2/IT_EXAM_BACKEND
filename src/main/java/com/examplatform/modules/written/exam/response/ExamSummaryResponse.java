@@ -23,4 +23,6 @@ public class ExamSummaryResponse {
     private LocalDateTime endTime;
     private String status;
     private Boolean alreadyAttemptedThisCycle;
+    private Boolean practiceEnabled;
+    private Boolean showResultInPractice;
 }
