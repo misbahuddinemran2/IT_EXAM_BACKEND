@@ -17,4 +17,12 @@ public interface WrittenExamRepository extends JpaRepository<WrittenExam, String
     List<WrittenExam> findByStatusAndEndTimeBefore(ExamStatus status, LocalDateTime time);
 
     Optional<WrittenExam> findByIdAndStatus(String id, ExamStatus status);
+
+    // Hybrid filter: status=LIVE এবং এখনকার সময় start-end window এর মধ্যে (active/ongoing)
+    List<WrittenExam> findByEducationLevelAndStatusAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
+            String educationLevel, ExamStatus status, LocalDateTime nowForStart, LocalDateTime nowForEnd);
+
+    // সমাপ্ত হয়ে যাওয়া exam (status=LIVE কিন্তু endTime পার হয়ে গেছে — practice এর জন্য দেখানো হবে)
+    List<WrittenExam> findByEducationLevelAndStatusAndEndTimeBefore(
+            String educationLevel, ExamStatus status, LocalDateTime time);
 }
