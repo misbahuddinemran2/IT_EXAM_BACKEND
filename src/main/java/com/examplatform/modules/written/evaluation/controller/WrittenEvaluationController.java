@@ -156,4 +156,15 @@ public class WrittenEvaluationController {
         }
         return submission;
     }
+/**
+     * Written-exam leaderboard for the current cycle — only original attempts with
+     * published results, ranked by marks. Mirrors GET /live-exams/{examId}/leaderboard
+     * from the MCQ module.
+     */
+    @GetMapping("/exam/{examId}/leaderboard")
+    public List<com.examplatform.modules.written.evaluation.response.WrittenLeaderboardEntryResponse> getLeaderboard(
+            @PathVariable String examId, Authentication auth) {
+        return evaluationService.getLeaderboard(examId, auth.getName());
+    }
+   
 }
