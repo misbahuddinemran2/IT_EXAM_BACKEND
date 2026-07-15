@@ -63,13 +63,24 @@ public class WrittenExamServiceImpl implements WrittenExamService {
         return examMapper.toResponse(examRepository.save(exam));
     }
 
+    /**
+     * Moves an exam to LIVE. Supports two flows from the admin's perspective:
+     *  - PUBLISHED -> LIVE: normal first-time launch of a newly created exam.
+     *  - ENDED -> LIVE: re-exam — admin has already updated startTime/endTime via
+     *    updateExam() to a new window, and now wants to reopen the exam for that window
+     *    WITHOUT bumping cycleNumber. Students who already attempted in this same cycle
+     *    remain blocked (checked via cycleNumber match in submission lookups), while
+     *    students who haven't attempted yet can now take it in the new time window.
+     *    This is intentionally distinct from reopenExam(), which increments cycleNumber
+     *    and allows everyone (including previous takers) to attempt again.
+     */
     @Override
     @Transactional
     public ExamResponse goLive(String examId) {
         WrittenExam exam = getExamOrThrow(examId);
 
-        if (exam.getStatus() != ExamStatus.PUBLISHED) {
-            throw new IllegalStateException("Only PUBLISHED exams can go LIVE");
+        if (exam.getStatus() != ExamStatus.PUBLISHED && exam.getStatus() != ExamStatus.ENDED) {
+            throw new IllegalStateException("Only PUBLISHED or ENDED exams can go LIVE");
         }
 
         exam.setStatus(ExamStatus.LIVE);
