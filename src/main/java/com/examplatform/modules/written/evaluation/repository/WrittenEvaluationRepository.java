@@ -2,7 +2,10 @@ package com.examplatform.modules.written.evaluation.repository;
 
 import com.examplatform.modules.written.evaluation.entity.WrittenEvaluation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface WrittenEvaluationRepository extends JpaRepository<WrittenEvaluation, String> {
@@ -10,4 +13,21 @@ public interface WrittenEvaluationRepository extends JpaRepository<WrittenEvalua
     Optional<WrittenEvaluation> findBySubmissionId(String submissionId);
 
     boolean existsBySubmissionId(String submissionId);
+
+    /**
+     * Leaderboard query for a written exam: only evaluations whose result has been
+     * published to students (resultPublished=true, status=COMPLETED), only for the
+     * given exam+cycle, and excluding practice-mode submissions — mirrors the
+     * LIVE-exam-only leaderboard semantics used for MCQ exams. Ordered highest mark first.
+     */
+    @Query("SELECT e FROM WrittenEvaluation e " +
+           "WHERE e.submission.examId = :examId " +
+           "AND e.submission.cycleNumber = :cycleNumber " +
+           "AND e.submission.isPracticeMode = false " +
+           "AND e.resultPublished = true " +
+           "AND e.status = com.examplatform.modules.written.evaluation.enums.EvaluationStatus.COMPLETED " +
+           "ORDER BY e.totalMark DESC")
+    List<WrittenEvaluation> findLeaderboardByExamIdAndCycle(
+            @Param("examId") String examId,
+            @Param("cycleNumber") Integer cycleNumber);
 }
