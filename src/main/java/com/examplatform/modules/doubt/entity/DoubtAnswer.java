@@ -21,8 +21,9 @@ public class DoubtAnswer {
     @Column(name = "doubt_question_id", length = 36, nullable = false, unique = true)
     private String doubtQuestionId;
 
-    @Column(name = "admin_id", length = 36, nullable = false)
-    private String adminId;
+    // DoubtAnswer.java তে — এইটা পরিবর্তন করতে হবে
+@Column(name = "admin_id", length = 36) // nullable = false বাদ দিলাম
+private String adminId;
 
     @Column(name = "answer_text", columnDefinition = "TEXT")
     private String answerText;
