@@ -4,6 +4,7 @@ import com.examplatform.modules.doubt.dto.*;
 import com.examplatform.modules.doubt.service.AdminDoubtService;
 import com.examplatform.modules.doubt.service.DoubtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,8 +38,8 @@ public class AdminDoubtController {
     }
 
     @PostMapping("/{id}/accept")
-    public DoubtResponse accept(@PathVariable String id) {
-        return adminDoubtService.acceptDoubt(id);
+    public DoubtResponse accept(@PathVariable String id, Authentication auth) {
+        return adminDoubtService.acceptDoubt(id, auth.getName());
     }
 
     @PostMapping("/{id}/generate-ai")
@@ -49,7 +50,8 @@ public class AdminDoubtController {
     @PostMapping("/{id}/answer")
     public DoubtResponse saveAnswer(
             @PathVariable String id,
-            @RequestBody AdminAnswerRequest request) {
-        return adminDoubtService.saveAnswer(id, request);
+            @RequestBody AdminAnswerRequest request,
+            Authentication auth) {
+        return adminDoubtService.saveAnswer(id, auth.getName(), request);
     }
 }
