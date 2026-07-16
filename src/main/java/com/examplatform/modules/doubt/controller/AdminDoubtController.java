@@ -2,6 +2,7 @@ package com.examplatform.modules.doubt.controller;
 
 import com.examplatform.modules.doubt.dto.*;
 import com.examplatform.modules.doubt.service.AdminDoubtService;
+import com.examplatform.modules.doubt.service.DoubtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +14,7 @@ import java.util.List;
 public class AdminDoubtController {
 
     private final AdminDoubtService adminDoubtService;
+    private final DoubtService doubtService;
 
     @GetMapping("/pending")
     public List<DoubtSummaryResponse> getPending() {
@@ -27,6 +29,11 @@ public class AdminDoubtController {
     @GetMapping("/answered")
     public List<DoubtSummaryResponse> getAnswered() {
         return adminDoubtService.getByStatus("ANSWERED");
+    }
+
+    @GetMapping("/{id}")
+    public DoubtResponse getDoubtDetail(@PathVariable String id) {
+        return doubtService.getDoubtDetailForAdmin(id);
     }
 
     @PostMapping("/{id}/accept")
