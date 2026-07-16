@@ -109,7 +109,15 @@ public class DoubtServiceImpl implements DoubtService {
         DoubtAnswer answer = doubtAnswerRepository.findByDoubtQuestionId(doubtId).orElse(null);
         return doubtMapper.toResponse(doubt, answer);
     }
+    
+@Override
+public DoubtResponse getDoubtDetailForAdmin(String doubtId) {
+    DoubtQuestion doubt = doubtQuestionRepository.findById(doubtId)
+            .orElseThrow(() -> new IllegalArgumentException("Doubt not found: " + doubtId));
 
+    DoubtAnswer answer = doubtAnswerRepository.findByDoubtQuestionId(doubtId).orElse(null);
+    return doubtMapper.toResponse(doubt, answer);
+}
     private DoubtQuestion getOwnedDoubtOrThrow(String doubtId, String studentUserId) {
         DoubtQuestion doubt = doubtQuestionRepository.findById(doubtId)
                 .orElseThrow(() -> new IllegalArgumentException("Doubt not found: " + doubtId));
