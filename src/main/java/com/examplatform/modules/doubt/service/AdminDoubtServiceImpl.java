@@ -26,8 +26,8 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
 
     @Override
     public List<DoubtSummaryResponse> getByStatus(String status) {
-        DoubtStatus status1 = DoubtStatus.valueOf(status.toUpperCase());
-        return doubtQuestionRepository.findByStatusOrderByCreatedAtAsc(status1)
+        DoubtStatus statusEnum = DoubtStatus.valueOf(status.toUpperCase());
+        return doubtQuestionRepository.findByStatusOrderByCreatedAtAsc(statusEnum)
                 .stream()
                 .map(doubtMapper::toSummary)
                 .collect(Collectors.toList());
@@ -35,14 +35,14 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
 
     @Override
     @Transactional
-    public DoubtResponse acceptDoubt(String doubtId, String adminId) {
+    public DoubtResponse acceptDoubt(String doubtId) {
         DoubtQuestion doubt = getDoubtOrThrow(doubtId);
         if (doubt.getStatus() != DoubtStatus.PENDING) {
             throw new IllegalStateException("Only PENDING doubts can be accepted");
         }
         doubt.setStatus(DoubtStatus.REVIEWED);
-        doubt.setReviewedByAdminId(adminId);
         doubt.setReviewedAt(LocalDateTime.now());
+        // single admin — reviewedByAdminId সেট করার দরকার নেই
         doubtQuestionRepository.save(doubt);
         return doubtMapper.toResponse(doubt, null);
     }
@@ -56,7 +56,7 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
 
     @Override
     @Transactional
-    public DoubtResponse saveAnswer(String doubtId, String adminId, AdminAnswerRequest request) {
+    public DoubtResponse saveAnswer(String doubtId, AdminAnswerRequest request) {
         DoubtQuestion doubt = getDoubtOrThrow(doubtId);
         if (doubt.getStatus() == DoubtStatus.PENDING) {
             throw new IllegalStateException("Accept the doubt before answering");
@@ -69,7 +69,7 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
         DoubtAnswer answer = doubtAnswerRepository.findByDoubtQuestionId(doubtId)
                 .orElse(DoubtAnswer.builder().doubtQuestionId(doubtId).build());
 
-        answer.setAdminId(adminId);
+        // single admin — adminId সেট করার দরকার নেই
         answer.setAnswerText(request.getAnswerText());
         answer.setAnswerPdfUrl(request.getAnswerPdfUrl());
         answer.setAnsweredViaAi(request.isUseAiText() || request.isUseAiPdf());
