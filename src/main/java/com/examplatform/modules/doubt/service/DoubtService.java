@@ -11,4 +11,5 @@ public interface DoubtService {
     List<DoubtSummaryResponse> getMyDoubts(String studentUserId);
     List<DoubtSummaryResponse> getAnsweredDoubts(String chapterId, String subjectId);
     DoubtResponse getDoubtDetail(String doubtId, String requesterUserId);
+    DoubtResponse getDoubtDetailForAdmin(String doubtId);
 }
