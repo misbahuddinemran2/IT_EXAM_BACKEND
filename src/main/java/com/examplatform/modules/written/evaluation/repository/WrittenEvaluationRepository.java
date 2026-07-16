@@ -16,18 +16,17 @@ public interface WrittenEvaluationRepository extends JpaRepository<WrittenEvalua
 
     /**
      * Leaderboard query for a written exam: only evaluations whose result has been
-     * published to students (resultPublished=true, status=COMPLETED), only for the
-     * given exam+cycle, and excluding practice-mode submissions — mirrors the
-     * LIVE-exam-only leaderboard semantics used for MCQ exams. Ordered highest mark first.
+     * published to students (resultPublished=true, status=COMPLETED), and excluding
+     * practice-mode submissions. Cycle-agnostic — a student can only ever have one
+     * lifetime (non-practice) attempt for a given exam regardless of how many times
+     * the exam has been reopened, so all cycles are merged into a single leaderboard.
+     * Ordered highest mark first.
      */
     @Query("SELECT e FROM WrittenEvaluation e " +
            "WHERE e.submission.examId = :examId " +
-           "AND e.submission.cycleNumber = :cycleNumber " +
            "AND e.submission.isPracticeMode = false " +
            "AND e.resultPublished = true " +
            "AND e.status = com.examplatform.modules.written.evaluation.enums.EvaluationStatus.COMPLETED " +
            "ORDER BY e.totalMark DESC")
-    List<WrittenEvaluation> findLeaderboardByExamIdAndCycle(
-            @Param("examId") String examId,
-            @Param("cycleNumber") Integer cycleNumber);
+    List<WrittenEvaluation> findLeaderboardByExamId(@Param("examId") String examId);
 }
