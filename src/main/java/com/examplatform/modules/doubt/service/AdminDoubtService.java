@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface AdminDoubtService {
     List<DoubtSummaryResponse> getByStatus(String status);
-    DoubtResponse acceptDoubt(String doubtId);
+    DoubtResponse acceptDoubt(String doubtId, String adminId);
     AiGenerateResponse generateAiPreview(String doubtId);
-    DoubtResponse saveAnswer(String doubtId, AdminAnswerRequest request);
+    DoubtResponse saveAnswer(String doubtId, String adminId, AdminAnswerRequest request);
 }
