@@ -22,7 +22,7 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
     private final DoubtQuestionRepository doubtQuestionRepository;
     private final DoubtAnswerRepository doubtAnswerRepository;
     private final DoubtMapper doubtMapper;
-    // private final DoubtAiAnswerService doubtAiAnswerService; // AI service pattern কনফার্ম হওয়ার পর wire করব
+    private final DoubtAiAnswerService doubtAiAnswerService;
 
     @Override
     public List<DoubtSummaryResponse> getByStatus(String status) {
@@ -42,7 +42,6 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
         }
         doubt.setStatus(DoubtStatus.REVIEWED);
         doubt.setReviewedAt(LocalDateTime.now());
-        // single admin — reviewedByAdminId সেট করার দরকার নেই
         doubtQuestionRepository.save(doubt);
         return doubtMapper.toResponse(doubt, null);
     }
@@ -50,8 +49,11 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
     @Override
     public AiGenerateResponse generateAiPreview(String doubtId) {
         DoubtQuestion doubt = getDoubtOrThrow(doubtId);
-        // TODO: DoubtAiAnswerService.generate(doubt) কল করব — AI service pattern কনফার্ম হওয়ার পর
-        throw new UnsupportedOperationException("AI service integration pending");
+        String generatedText = doubtAiAnswerService.generateAnswerText(doubt);
+
+        return AiGenerateResponse.builder()
+                .generatedText(generatedText)
+                .build();
     }
 
     @Override
@@ -69,10 +71,9 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
         DoubtAnswer answer = doubtAnswerRepository.findByDoubtQuestionId(doubtId)
                 .orElse(DoubtAnswer.builder().doubtQuestionId(doubtId).build());
 
-        // single admin — adminId সেট করার দরকার নেই
         answer.setAnswerText(request.getAnswerText());
         answer.setAnswerPdfUrl(request.getAnswerPdfUrl());
-        answer.setAnsweredViaAi(request.isUseAiText() || request.isUseAiPdf());
+        answer.setAnsweredViaAi(request.isUseAiText());
 
         doubtAnswerRepository.save(answer);
 
