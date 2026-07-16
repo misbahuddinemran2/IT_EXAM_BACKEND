@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -60,10 +61,10 @@ public class WrittenEvaluationServiceImpl implements WrittenEvaluationService {
 
     /**
      * Written-exam leaderboard, mirroring the MCQ live-exam leaderboard semantics:
-     * only the current cycle, only original (non-practice) attempts, and only
-     * evaluations whose result has been published to students. Ranked by totalMark
-     * descending; ties share no special handling (stable order by query, matching
-     * the simple rank-by-position approach used for MCQ exams).
+     * only original (non-practice) attempts, and only evaluations whose result has
+     * been published to students. Cycle-agnostic — a student attempts a written exam
+     * at most once in its lifetime (even across reopens/re-exams), so results from
+     * every cycle are merged into one leaderboard. Ranked by totalMark descending.
      */
     @Override
     public List<WrittenLeaderboardEntryResponse> getLeaderboard(String examId, String requestingUserId) {
@@ -71,11 +72,11 @@ public class WrittenEvaluationServiceImpl implements WrittenEvaluationService {
                 .orElseThrow(() -> new NoSuchElementException("Exam not found: " + examId));
 
         List<WrittenEvaluation> evaluations = evaluationRepository
-                .findLeaderboardByExamIdAndCycle(examId, exam.getCycleNumber());
+                .findLeaderboardByExamId(examId);
 
         BigDecimal totalMarks = BigDecimal.valueOf(exam.getTotalMarks());
 
-        List<WrittenLeaderboardEntryResponse> result = new java.util.ArrayList<>();
+        List<WrittenLeaderboardEntryResponse> result = new ArrayList<>();
         int rank = 1;
         for (WrittenEvaluation evaluation : evaluations) {
             String userId = evaluation.getSubmission().getUserId();
