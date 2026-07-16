@@ -35,13 +35,14 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
 
     @Override
     @Transactional
-    public DoubtResponse acceptDoubt(String doubtId) {
+    public DoubtResponse acceptDoubt(String doubtId, String adminId) {
         DoubtQuestion doubt = getDoubtOrThrow(doubtId);
         if (doubt.getStatus() != DoubtStatus.PENDING) {
             throw new IllegalStateException("Only PENDING doubts can be accepted");
         }
         doubt.setStatus(DoubtStatus.REVIEWED);
         doubt.setReviewedAt(LocalDateTime.now());
+        doubt.setReviewedByAdminId(adminId);
         doubtQuestionRepository.save(doubt);
         return doubtMapper.toResponse(doubt, null);
     }
@@ -58,7 +59,7 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
 
     @Override
     @Transactional
-    public DoubtResponse saveAnswer(String doubtId, AdminAnswerRequest request) {
+    public DoubtResponse saveAnswer(String doubtId, String adminId, AdminAnswerRequest request) {
         DoubtQuestion doubt = getDoubtOrThrow(doubtId);
         if (doubt.getStatus() == DoubtStatus.PENDING) {
             throw new IllegalStateException("Accept the doubt before answering");
@@ -71,6 +72,7 @@ public class AdminDoubtServiceImpl implements AdminDoubtService {
         DoubtAnswer answer = doubtAnswerRepository.findByDoubtQuestionId(doubtId)
                 .orElse(DoubtAnswer.builder().doubtQuestionId(doubtId).build());
 
+        answer.setAdminId(adminId);
         answer.setAnswerText(request.getAnswerText());
         answer.setAnswerPdfUrl(request.getAnswerPdfUrl());
         answer.setAnsweredViaAi(request.isUseAiText());
