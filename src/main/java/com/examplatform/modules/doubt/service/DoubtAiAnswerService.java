@@ -35,9 +35,6 @@ public class DoubtAiAnswerService {
         textPart.put("text", prompt);
         partsArray.add(textPart);
 
-        // student এর question এ image থাকলে সেটাও পাঠানো ভালো, কিন্তু সেজন্য base64 fetch লাগবে
-        // (ImageKit URL থেকে ডাউনলোড করে base64 বানাতে হবে) — আপাতত শুধু text দিয়ে শুরু করছি
-
         var contentNode = objectMapper.createObjectNode();
         contentNode.set("parts", partsArray);
 
