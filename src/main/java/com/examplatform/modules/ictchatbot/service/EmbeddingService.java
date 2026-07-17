@@ -24,34 +24,35 @@ public class EmbeddingService {
     private String apiKey;
 
     // এমবেডিং মডেল টেক্সট জেনারেশন মডেল থেকে আলাদা — এটা ৭৬৮-dimension ভেক্টর দেয়
-    private static final String EMBEDDING_MODEL = "text-embedding-004";
+    private static final String EMBEDDING_MODEL = "gemini-embedding-001";
 
     public float[] generateEmbedding(String text) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-                + EMBEDDING_MODEL + ":embedContent?key=" + apiKey;
+    String url = "https://generativelanguage.googleapis.com/v1beta/models/"
+            + EMBEDDING_MODEL + ":embedContent?key=" + apiKey;
 
-        var contentNode = objectMapper.createObjectNode();
-        var partsArray = objectMapper.createArrayNode();
-        var textPart = objectMapper.createObjectNode();
-        textPart.put("text", text);
-        partsArray.add(textPart);
-        contentNode.set("parts", partsArray);
+    var contentNode = objectMapper.createObjectNode();
+    var partsArray = objectMapper.createArrayNode();
+    var textPart = objectMapper.createObjectNode();
+    textPart.put("text", text);
+    partsArray.add(textPart);
+    contentNode.set("parts", partsArray);
 
-        var requestBody = objectMapper.createObjectNode();
-        requestBody.put("model", "models/" + EMBEDDING_MODEL);
-        requestBody.set("content", contentNode);
+    var requestBody = objectMapper.createObjectNode();
+    requestBody.put("model", "models/" + EMBEDDING_MODEL);
+    requestBody.set("content", contentNode);
+    requestBody.put("outputDimensionality", 768);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<String> request = new HttpEntity<>(requestBody.toString(), headers);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    HttpEntity<String> request = new HttpEntity<>(requestBody.toString(), headers);
 
-        try {
-            String response = restTemplate.postForObject(url, request, String.class);
-            return extractEmbedding(response);
-        } catch (Exception e) {
-            throw new RuntimeException("Gemini embedding call failed: " + e.getMessage(), e);
-        }
+    try {
+        String response = restTemplate.postForObject(url, request, String.class);
+        return extractEmbedding(response);
+    } catch (Exception e) {
+        throw new RuntimeException("Gemini embedding call failed: " + e.getMessage(), e);
     }
+}
 
     private float[] extractEmbedding(String responseJson) throws Exception {
         JsonNode root = objectMapper.readTree(responseJson);
