@@ -58,11 +58,17 @@ public class IctUploadService {
         return uploadRepository.save(upload);
     }
 
-    public List<IctOcrUpload> getUploadsByStatus(IctUploadStatus status) {
-        if (status == null) {
-            return uploadRepository.findAll();
+    public List<IctOcrUpload> getUploads(IctUploadStatus status, String topicId) {
+        if (topicId != null && !topicId.isBlank() && status != null) {
+            return uploadRepository.findByTopicIdAndStatusOrderByCreatedAtAsc(topicId, status);
         }
-        return uploadRepository.findByStatusOrderByCreatedAtAsc(status);
+        if (topicId != null && !topicId.isBlank()) {
+            return uploadRepository.findByTopicIdOrderByCreatedAtAsc(topicId);
+        }
+        if (status != null) {
+            return uploadRepository.findByStatusOrderByCreatedAtAsc(status);
+        }
+        return uploadRepository.findAll();
     }
 
     public IctOcrUpload reviewUpload(String id, IctUploadReviewRequest request) {
