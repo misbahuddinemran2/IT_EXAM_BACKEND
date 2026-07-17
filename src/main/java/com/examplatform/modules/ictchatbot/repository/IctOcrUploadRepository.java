@@ -10,6 +10,9 @@ import java.util.List;
 
 public interface IctOcrUploadRepository extends JpaRepository<IctOcrUpload, String> {
 
+    List<IctOcrUpload> findByTopicIdAndStatusOrderByCreatedAtAsc(String topicId, IctUploadStatus status);
+
+List<IctOcrUpload> findByTopicIdOrderByCreatedAtAsc(String topicId);
     List<IctOcrUpload> findByStatusOrderByCreatedAtAsc(IctUploadStatus status);
 
     List<IctOcrUpload> findByWriterNameAndStatus(String writerName, IctUploadStatus status);
