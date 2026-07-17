@@ -28,8 +28,8 @@ public class OcrService {
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("apikey", ocrApiKey);
         body.add("url", imageUrl);
-        body.add("language", "ben"); // বাংলার জন্য
-        body.add("OCREngine", "2");  // Engine 2 - বাংলার জন্য তুলনামূলক ভালো
+        body.add("language", "bng"); // বাংলার জন্য
+        body.add("OCREngine", "3");  // Engine 2 - বাংলার জন্য তুলনামূলক ভালো
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
