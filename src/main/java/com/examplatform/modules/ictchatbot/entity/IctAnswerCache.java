@@ -29,6 +29,8 @@ public class IctAnswerCache {
     @Column(name = "cached_answer", columnDefinition = "TEXT", nullable = false)
     private String cachedAnswer;
 
+    @Column(name = "source_writers", length = 1000)
+private String sourceWriters;
     @Column(name = "hit_count", nullable = false)
     private Integer hitCount;
 
