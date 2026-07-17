@@ -1,6 +1,4 @@
 package com.examplatform.modules.ictchatbot.entity;
-
-import com.pgvector.PGvector;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -37,8 +35,9 @@ public class IctBookChunk {
     @Column(name = "topic_id", length = 36)
     private String topicId;
 
-    @Column(name = "embedding", columnDefinition = "vector(768)")
-    private PGvector embedding;
+   @Column(name = "embedding", columnDefinition = "vector(768)")
+@org.hibernate.annotations.ColumnTransformer(write = "?::vector")
+private String embedding;
 
     @Column(name = "diagram_url", length = 500)
     private String diagramUrl;
