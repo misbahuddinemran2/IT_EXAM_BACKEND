@@ -49,17 +49,21 @@ public class IctAskService {
         // 2. cache চেক করো
         List<IctAnswerCache> cacheHits = cacheRepository.findClosestMatch(questionEmbeddingStr, CACHE_DISTANCE_THRESHOLD);
         if (!cacheHits.isEmpty()) {
-            IctAnswerCache hit = cacheHits.get(0);
-            hit.setHitCount(hit.getHitCount() + 1);
-            cacheRepository.save(hit);
+    IctAnswerCache hit = cacheHits.get(0);
+    hit.setHitCount(hit.getHitCount() + 1);
+    cacheRepository.save(hit);
 
-            return IctAskResponse.builder()
-                    .answer(hit.getCachedAnswer())
-                    .sourceWriters(List.of())
-                    .diagramUrls(List.of())
-                    .fromCache(true)
-                    .build();
-        }
+    List<String> cachedWriters = hit.getSourceWriters() != null && !hit.getSourceWriters().isBlank()
+            ? List.of(hit.getSourceWriters().split(","))
+            : List.of();
+
+    return IctAskResponse.builder()
+            .answer(hit.getCachedAnswer())
+            .sourceWriters(cachedWriters)
+            .diagramUrls(List.of())
+            .fromCache(true)
+            .build();
+}
 
         // 3. vector search করো — সব লেখক জুড়ে (writerName = null মানে filter নেই)
         List<IctBookChunk> similarChunks = chunkRepository.findSimilarChunks(questionEmbeddingStr, null, TOP_K);
@@ -90,10 +94,11 @@ public class IctAskService {
 
         // 6. cache-এ সেভ করো
         IctAnswerCache cacheEntry = IctAnswerCache.builder()
-                .questionText(question)
-                .questionEmbedding(questionEmbeddingStr)
-                .cachedAnswer(answer)
-                .build();
+        .questionText(question)
+        .questionEmbedding(questionEmbeddingStr)
+        .cachedAnswer(answer)
+        .sourceWriters(String.join(",", sourceWriters))
+        .build();
         cacheRepository.save(cacheEntry);
 
         return IctAskResponse.builder()
