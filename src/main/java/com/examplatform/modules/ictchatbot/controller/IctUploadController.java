@@ -3,9 +3,11 @@ package com.examplatform.modules.ictchatbot.controller;
 import com.examplatform.modules.ictchatbot.dto.IctUploadListResponse;
 import com.examplatform.modules.ictchatbot.dto.IctUploadResponse;
 import com.examplatform.modules.ictchatbot.dto.IctUploadReviewRequest;
+import com.examplatform.modules.ictchatbot.dto.IctVectorizeResponse;
 import com.examplatform.modules.ictchatbot.entity.IctOcrUpload;
 import com.examplatform.modules.ictchatbot.enums.IctUploadStatus;
 import com.examplatform.modules.ictchatbot.service.IctUploadService;
+import com.examplatform.modules.ictchatbot.service.IctVectorizeService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class IctUploadController {
 
     private final IctUploadService uploadService;
+    private final IctVectorizeService vectorizeService;
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<IctUploadResponse> upload(
@@ -43,32 +46,32 @@ public class IctUploadController {
     }
 
     @GetMapping("/uploads")
-public ResponseEntity<List<IctUploadListResponse>> getUploads(
-        @RequestParam(value = "status", required = false) String status,
-        @RequestParam(value = "topicId", required = false) String topicId
-) {
-    IctUploadStatus statusEnum = null;
-    if (status != null && !status.isBlank()) {
-        statusEnum = IctUploadStatus.valueOf(status.toUpperCase());
+    public ResponseEntity<List<IctUploadListResponse>> getUploads(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "topicId", required = false) String topicId
+    ) {
+        IctUploadStatus statusEnum = null;
+        if (status != null && !status.isBlank()) {
+            statusEnum = IctUploadStatus.valueOf(status.toUpperCase());
+        }
+
+        List<IctOcrUpload> uploads = uploadService.getUploads(statusEnum, topicId);
+
+        List<IctUploadListResponse> response = uploads.stream()
+                .map(u -> IctUploadListResponse.builder()
+                        .id(u.getId())
+                        .ocrText(u.getOcrText())
+                        .writerName(u.getWriterName())
+                        .subjectId(u.getSubjectId())
+                        .chapterId(u.getChapterId())
+                        .topicId(u.getTopicId())
+                        .status(u.getStatus().name())
+                        .createdAt(u.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
     }
-
-    List<IctOcrUpload> uploads = uploadService.getUploads(statusEnum, topicId);
-
-    List<IctUploadListResponse> response = uploads.stream()
-            .map(u -> IctUploadListResponse.builder()
-                    .id(u.getId())
-                    .ocrText(u.getOcrText())
-                    .writerName(u.getWriterName())
-                    .subjectId(u.getSubjectId())
-                    .chapterId(u.getChapterId())
-                    .topicId(u.getTopicId())
-                    .status(u.getStatus().name())
-                    .createdAt(u.getCreatedAt())
-                    .build())
-            .collect(Collectors.toList());
-
-    return ResponseEntity.ok(response);
-}
 
     @PutMapping("/uploads/{id}")
     public ResponseEntity<IctUploadListResponse> reviewUpload(
@@ -86,6 +89,19 @@ public ResponseEntity<List<IctUploadListResponse>> getUploads(
                 .topicId(updated.getTopicId())
                 .status(updated.getStatus().name())
                 .createdAt(updated.getCreatedAt())
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/uploads/{id}/vectorize")
+    public ResponseEntity<IctVectorizeResponse> vectorize(@PathVariable("id") String id) {
+        int chunkCount = vectorizeService.vectorizeUpload(id);
+
+        IctVectorizeResponse response = IctVectorizeResponse.builder()
+                .uploadId(id)
+                .chunkCount(chunkCount)
+                .status("VECTORIZED")
                 .build();
 
         return ResponseEntity.ok(response);
