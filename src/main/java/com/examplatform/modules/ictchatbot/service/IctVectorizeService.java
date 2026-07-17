@@ -5,7 +5,6 @@ import com.examplatform.modules.ictchatbot.entity.IctOcrUpload;
 import com.examplatform.modules.ictchatbot.enums.IctUploadStatus;
 import com.examplatform.modules.ictchatbot.repository.IctBookChunkRepository;
 import com.examplatform.modules.ictchatbot.repository.IctOcrUploadRepository;
-import com.pgvector.PGvector;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,7 +50,7 @@ public class IctVectorizeService {
                     .subjectId(upload.getSubjectId())
                     .chapterId(upload.getChapterId())
                     .topicId(upload.getTopicId())
-                    .embedding(new PGvector(embeddingArray))
+                    .embedding(floatArrayToVectorString(embeddingArray))
                     .build();
 
             chunkRepository.save(chunk);
@@ -63,5 +62,15 @@ public class IctVectorizeService {
         uploadRepository.save(upload);
 
         return savedCount;
+    }
+
+    private String floatArrayToVectorString(float[] arr) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < arr.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(arr[i]);
+        }
+        sb.append("]");
+        return sb.toString();
     }
 }
