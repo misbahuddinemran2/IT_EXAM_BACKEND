@@ -43,31 +43,32 @@ public class IctUploadController {
     }
 
     @GetMapping("/uploads")
-    public ResponseEntity<List<IctUploadListResponse>> getUploads(
-            @RequestParam(value = "status", required = false) String status
-    ) {
-        IctUploadStatus statusEnum = null;
-        if (status != null && !status.isBlank()) {
-            statusEnum = IctUploadStatus.valueOf(status.toUpperCase());
-        }
-
-        List<IctOcrUpload> uploads = uploadService.getUploadsByStatus(statusEnum);
-
-        List<IctUploadListResponse> response = uploads.stream()
-                .map(u -> IctUploadListResponse.builder()
-                        .id(u.getId())
-                        .ocrText(u.getOcrText())
-                        .writerName(u.getWriterName())
-                        .subjectId(u.getSubjectId())
-                        .chapterId(u.getChapterId())
-                        .topicId(u.getTopicId())
-                        .status(u.getStatus().name())
-                        .createdAt(u.getCreatedAt())
-                        .build())
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(response);
+public ResponseEntity<List<IctUploadListResponse>> getUploads(
+        @RequestParam(value = "status", required = false) String status,
+        @RequestParam(value = "topicId", required = false) String topicId
+) {
+    IctUploadStatus statusEnum = null;
+    if (status != null && !status.isBlank()) {
+        statusEnum = IctUploadStatus.valueOf(status.toUpperCase());
     }
+
+    List<IctOcrUpload> uploads = uploadService.getUploads(statusEnum, topicId);
+
+    List<IctUploadListResponse> response = uploads.stream()
+            .map(u -> IctUploadListResponse.builder()
+                    .id(u.getId())
+                    .ocrText(u.getOcrText())
+                    .writerName(u.getWriterName())
+                    .subjectId(u.getSubjectId())
+                    .chapterId(u.getChapterId())
+                    .topicId(u.getTopicId())
+                    .status(u.getStatus().name())
+                    .createdAt(u.getCreatedAt())
+                    .build())
+            .collect(Collectors.toList());
+
+    return ResponseEntity.ok(response);
+}
 
     @PutMapping("/uploads/{id}")
     public ResponseEntity<IctUploadListResponse> reviewUpload(
