@@ -1,8 +1,8 @@
 package com.examplatform.modules.ictchatbot.entity;
 
-import com.pgvector.PGvector;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.time.LocalDateTime;
 
@@ -23,7 +23,8 @@ public class IctAnswerCache {
     private String questionText;
 
     @Column(name = "question_embedding", columnDefinition = "vector(768)", nullable = false)
-    private PGvector questionEmbedding;
+    @ColumnTransformer(write = "?::vector")
+    private String questionEmbedding;
 
     @Column(name = "cached_answer", columnDefinition = "TEXT", nullable = false)
     private String cachedAnswer;
