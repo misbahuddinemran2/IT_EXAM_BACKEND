@@ -1,9 +1,11 @@
+
 package com.examplatform.modules.ictchatbot.repository;
 
 import com.examplatform.modules.ictchatbot.entity.IctBookChunk;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -12,6 +14,9 @@ public interface IctBookChunkRepository extends JpaRepository<IctBookChunk, Stri
     List<IctBookChunk> findBySourceUploadId(String sourceUploadId);
 
     List<IctBookChunk> findByWriterName(String writerName);
+
+    @Transactional
+    void deleteBySourceUploadId(String sourceUploadId);
 
     // Vector similarity search - cosine distance (lower = more similar)
     // :embedding কে string হিসেবে pass করতে হবে, format: "[0.1,0.2,0.3,...]"
