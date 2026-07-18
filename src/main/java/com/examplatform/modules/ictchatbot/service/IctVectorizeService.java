@@ -1,3 +1,4 @@
+
 package com.examplatform.modules.ictchatbot.service;
 
 import com.examplatform.modules.ictchatbot.entity.IctBookChunk;
@@ -30,6 +31,10 @@ public class IctVectorizeService {
             throw new IllegalStateException(
                     "Upload must be REVIEWED before vectorizing. Current status: " + upload.getStatus());
         }
+
+        // re-vectorize হলে (আগে vectorize হয়ে থাকলে, পরে আবার edit+review করে আবার vectorize করা হলে)
+        // পুরনো chunk গুলো আগে মুছে ফেলা - duplicate chunk তৈরি এড়াতে
+        chunkRepository.deleteBySourceUploadId(uploadId);
 
         // 1. টেক্সটকে chunk-এ ভাগ করো
         List<String> textChunks = chunkingService.chunkText(upload.getOcrText());
