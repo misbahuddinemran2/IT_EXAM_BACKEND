@@ -8,9 +8,11 @@ import com.examplatform.modules.ictchatbot.repository.IctQuickReplyRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,147 +21,407 @@ import java.util.stream.Collectors;
 @Slf4j
 public class IctQuickReplyService {
 
-    private final IctQuickReplyRepository repository;
+private final IctQuickReplyRepository repository;
 
-    /*
-     * In-memory cache — প্রতি request এ DB hit এড়াতে।
-     * প্রতি ৫ মিনিটে refresh হবে (নিচে @Scheduled দ্রষ্টব্য)।
-     */
-    private volatile List<IctQuickReply> cachedReplies = new ArrayList<>();
+/*
+ * ===================================
+ * IN-MEMORY CACHE
+ * ===================================
+ */
 
-    @PostConstruct
-    public void init() {
-        refreshCache();
+private volatile List<IctQuickReply> cachedReplies =
+        List.of();
+
+
+/*
+ * ===================================
+ * INIT
+ * ===================================
+ */
+
+@PostConstruct
+public void init() {
+    refreshCache();
+}
+
+
+/*
+ * ===================================
+ * CACHE REFRESH
+ * ===================================
+ */
+
+@Scheduled(fixedRate = 5 * 60 * 1000)
+public void refreshCache() {
+
+    try {
+
+        List<IctQuickReply> replies =
+                repository.findByIsActiveTrue()
+                        .stream()
+                        /*
+                         * Longer keyword first
+                         *
+                         * Example:
+                         * system prompt
+                         * আগে match হবে
+                         * system-এর আগে
+                         */
+                        .sorted(
+                                Comparator.comparingInt(
+                                        reply ->
+                                                getLongestKeywordLength(
+                                                        reply.getKeywords()
+                                                )
+                                ).reversed()
+                        )
+                        .toList();
+
+        cachedReplies = List.copyOf(replies);
+
+        log.info(
+                "ICT quick-reply cache refreshed. Entries: {}",
+                cachedReplies.size()
+        );
+
+    } catch (Exception e) {
+
+        log.error(
+                "ICT quick-reply cache refresh failed",
+                e
+        );
     }
+}
 
-    @Scheduled(fixedRate = 5 * 60 * 1000) // ৫ মিনিট পরপর
-    public void refreshCache() {
-        try {
-            cachedReplies = repository.findByIsActiveTrue();
-            log.info("ICT quick-reply cache refreshed. Entries: {}", cachedReplies.size());
-        } catch (Exception e) {
-            log.error("ICT quick-reply cache refresh failed", e);
-        }
-    }
 
-    /**
-     * প্রশ্নের সাথে কোনো quick-reply keyword মেলে কিনা চেক করে।
-     * মিললে reply text রিটার্ন করে, না মিললে Optional.empty()।
-     */
-    public Optional<String> findMatch(String question) {
+/*
+ * ===================================
+ * QUICK REPLY MATCH
+ * ===================================
+ */
 
-        if (question == null || question.isBlank()) {
-            return Optional.empty();
-        }
+public Optional<String> findMatch(
+        String question
+) {
 
-        String normalizedQuestion = normalize(question);
-
-        for (IctQuickReply reply : cachedReplies) {
-
-            String[] keywordList = reply.getKeywords().split(",");
-
-            for (String keyword : keywordList) {
-
-                String normalizedKeyword = normalize(keyword);
-
-                if (normalizedKeyword.isBlank()) {
-                    continue;
-                }
-
-                if (normalizedQuestion.contains(normalizedKeyword)) {
-                    return Optional.of(reply.getReplyText());
-                }
-            }
-        }
+    if (question == null
+            || question.isBlank()) {
 
         return Optional.empty();
     }
 
-    private String normalize(String text) {
-        return text
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[?!.,।]", "")
-                .replaceAll("\\s+", " ")
-                .trim();
+    String normalizedQuestion =
+            normalize(question);
+
+
+    for (IctQuickReply reply : cachedReplies) {
+
+        if (reply.getKeywords() == null
+                || reply.getKeywords().isBlank()) {
+
+            continue;
+        }
+
+        String[] keywordList =
+                reply.getKeywords().split(",");
+
+
+        for (String keyword : keywordList) {
+
+            String normalizedKeyword =
+                    normalize(keyword);
+
+
+            if (normalizedKeyword.isBlank()) {
+                continue;
+            }
+
+
+            if (containsSafeMatch(
+                    normalizedQuestion,
+                    normalizedKeyword
+            )) {
+
+                log.info(
+                        "ICT quick reply matched. Keyword: {}",
+                        keyword.trim()
+                );
+
+                return Optional.of(
+                        reply.getReplyText()
+                );
+            }
+        }
     }
+
+    return Optional.empty();
+}
+
+
+/*
+ * ===================================
+ * SAFE MATCH
+ * ===================================
+ */
+
+private boolean containsSafeMatch(
+        String question,
+        String keyword
+) {
 
     /*
-     * ===================================
-     * ADMIN CRUD METHODS
-     * ===================================
+     * Exact match
      */
-
-    public List<IctQuickReplyResponse> getAll() {
-        return repository.findAllByOrderByCreatedAtDesc()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    if (question.equals(keyword)) {
+        return true;
     }
 
-    public IctQuickReplyResponse create(IctQuickReplyRequest request) {
 
-        validateRequest(request);
+    /*
+     * Phrase / word boundary match
+     */
+    return question.contains(
+            " " + keyword + " "
+    )
+            || question.startsWith(
+            keyword + " "
+    )
+            || question.endsWith(
+            " " + keyword
+    );
+}
 
-        IctQuickReply entity = IctQuickReply.builder()
-                .keywords(request.getKeywords().trim())
-                .replyText(request.getReplyText().trim())
-                .isActive(request.getIsActive() == null || request.getIsActive())
-                .build();
 
-        IctQuickReply saved = repository.save(entity);
-        refreshCache();
+/*
+ * ===================================
+ * NORMALIZE
+ * ===================================
+ */
 
-        return toResponse(saved);
+private String normalize(
+        String text
+) {
+
+    if (text == null) {
+        return "";
     }
 
-    public IctQuickReplyResponse update(String id, IctQuickReplyRequest request) {
+    return Normalizer.normalize(
+                    text,
+                    Normalizer.Form.NFKC
+            )
+            .toLowerCase(Locale.ROOT)
+            .replaceAll(
+                    "[?!.,।:;\"'`()\\{}]",
+                    " "
+            )
+            .replaceAll(
+                    "\\s+",
+                    " "
+            )
+            .trim();
+}
 
-        IctQuickReply entity = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Quick reply পাওয়া যায়নি: " + id));
 
-        if (request.getKeywords() != null && !request.getKeywords().isBlank()) {
-            entity.setKeywords(request.getKeywords().trim());
-        }
+/*
+ * ===================================
+ * LONGEST KEYWORD
+ * ===================================
+ */
 
-        if (request.getReplyText() != null && !request.getReplyText().isBlank()) {
-            entity.setReplyText(request.getReplyText().trim());
-        }
+private int getLongestKeywordLength(
+        String keywords
+) {
 
-        if (request.getIsActive() != null) {
-            entity.setActive(request.getIsActive());
-        }
+    if (keywords == null
+            || keywords.isBlank()) {
 
-        IctQuickReply saved = repository.save(entity);
-        refreshCache();
-
-        return toResponse(saved);
+        return 0;
     }
 
-    public void delete(String id) {
-        if (!repository.existsById(id)) {
-            throw new IllegalArgumentException("Quick reply পাওয়া যায়নি: " + id);
-        }
-        repository.deleteById(id);
-        refreshCache();
+    return Arrays.stream(
+                    keywords.split(",")
+            )
+            .map(this::normalize)
+            .mapToInt(String::length)
+            .max()
+            .orElse(0);
+}
+
+
+/*
+ * ===================================
+ * ADMIN CRUD
+ * ===================================
+ */
+
+public List<IctQuickReplyResponse> getAll() {
+
+    return repository
+            .findAllByOrderByCreatedAtDesc()
+            .stream()
+            .map(this::toResponse)
+            .collect(Collectors.toList());
+}
+
+
+public IctQuickReplyResponse create(
+        IctQuickReplyRequest request
+) {
+
+    validateRequest(request);
+
+
+    IctQuickReply entity =
+            IctQuickReply.builder()
+                    .keywords(
+                            request.getKeywords().trim()
+                    )
+                    .replyText(
+                            request.getReplyText().trim()
+                    )
+                    .isActive(
+                            request.getIsActive() == null
+                                    || request.getIsActive()
+                    )
+                    .build();
+
+
+    IctQuickReply saved =
+            repository.save(entity);
+
+
+    refreshCache();
+
+    return toResponse(saved);
+}
+
+
+public IctQuickReplyResponse update(
+        String id,
+        IctQuickReplyRequest request
+) {
+
+    IctQuickReply entity =
+            repository.findById(id)
+                    .orElseThrow(() ->
+                            new IllegalArgumentException(
+                                    "Quick reply পাওয়া যায়নি: "
+                                            + id
+                    )
+                    );
+
+
+    if (request.getKeywords() != null
+            && !request.getKeywords().isBlank()) {
+
+        entity.setKeywords(
+                request.getKeywords().trim()
+        );
     }
 
-    private void validateRequest(IctQuickReplyRequest request) {
-        if (request.getKeywords() == null || request.getKeywords().isBlank()) {
-            throw new IllegalArgumentException("Keywords খালি হতে পারবে না");
-        }
-        if (request.getReplyText() == null || request.getReplyText().isBlank()) {
-            throw new IllegalArgumentException("Reply text খালি হতে পারবে না");
-        }
+
+    if (request.getReplyText() != null
+            && !request.getReplyText().isBlank()) {
+
+        entity.setReplyText(
+                request.getReplyText().trim()
+        );
     }
 
-    private IctQuickReplyResponse toResponse(IctQuickReply entity) {
-        return IctQuickReplyResponse.builder()
-                .id(entity.getId())
-                .keywords(entity.getKeywords())
-                .replyText(entity.getReplyText())
-                .isActive(entity.isActive())
-                .createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt())
-                .build();
+
+    if (request.getIsActive() != null) {
+
+        entity.setActive(
+                request.getIsActive()
+        );
     }
+
+
+    IctQuickReply saved =
+            repository.save(entity);
+
+
+    refreshCache();
+
+    return toResponse(saved);
+}
+
+
+public void delete(
+        String id
+) {
+
+    if (!repository.existsById(id)) {
+
+        throw new IllegalArgumentException(
+                "Quick reply পাওয়া যায়নি: "
+                        + id
+        );
+    }
+
+
+    repository.deleteById(id);
+
+    refreshCache();
+}
+
+
+/*
+ * ===================================
+ * VALIDATION
+ * ===================================
+ */
+
+private void validateRequest(
+        IctQuickReplyRequest request
+) {
+
+    if (request == null) {
+
+        throw new IllegalArgumentException(
+                "Request খালি হতে পারবে না"
+        );
+    }
+
+
+    if (request.getKeywords() == null
+            || request.getKeywords().isBlank()) {
+
+        throw new IllegalArgumentException(
+                "Keywords খালি হতে পারবে না"
+        );
+    }
+
+
+    if (request.getReplyText() == null
+            || request.getReplyText().isBlank()) {
+
+        throw new IllegalArgumentException(
+                "Reply text খালি হতে পারবে না"
+        );
+    }
+}
+
+
+/*
+ * ===================================
+ * RESPONSE MAPPER
+ * ===================================
+ */
+
+private IctQuickReplyResponse toResponse(
+        IctQuickReply entity
+) {
+
+    return IctQuickReplyResponse.builder()
+            .id(entity.getId())
+            .keywords(entity.getKeywords())
+            .replyText(entity.getReplyText())
+            .isActive(entity.isActive())
+            .createdAt(entity.getCreatedAt())
+            .updatedAt(entity.getUpdatedAt())
+            .build();
+}
+
 }
