@@ -6,6 +6,7 @@ import com.examplatform.modules.ictchatbot.entity.IctQuickReply;
 import com.examplatform.modules.ictchatbot.repository.IctQuickReplyRepository;
 
 import jakarta.annotation.PostConstruct;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -23,13 +25,19 @@ public class IctQuickReplyService {
 
 private final IctQuickReplyRepository repository;
 
+
 /*
  * ===================================
  * IN-MEMORY CACHE
+ *
+ * প্রতিটা entry এখানে আগে থেকেই
+ * split + normalize করা থাকে,
+ * যাতে findMatch() কলে বারবার
+ * এই কাজ করতে না হয়।
  * ===================================
  */
 
-private volatile List<IctQuickReply> cachedReplies =
+private volatile List<QuickReplyPattern> cachedReplies =
         List.of();
 
 
@@ -41,6 +49,7 @@ private volatile List<IctQuickReply> cachedReplies =
 
 @PostConstruct
 public void init() {
+
     refreshCache();
 }
 
@@ -56,33 +65,57 @@ public void refreshCache() {
 
     try {
 
-        List<IctQuickReply> replies =
+        List<QuickReplyPattern> patterns =
                 repository.findByIsActiveTrue()
                         .stream()
+                        .filter(Objects::nonNull)
+                        .flatMap(reply -> {
+
+                            if (reply.getKeywords() == null
+                                    || reply.getKeywords().isBlank()) {
+
+                                return Stream.<QuickReplyPattern>empty();
+                            }
+
+                            return Arrays.stream(
+                                            reply.getKeywords().split(",")
+                                    )
+                                    .map(this::normalize)
+                                    .filter(keyword ->
+                                            !keyword.isBlank()
+                                    )
+                                    .map(keyword ->
+                                            new QuickReplyPattern(
+                                                    keyword,
+                                                    reply.getReplyText()
+                                            )
+                                    );
+                        })
                         /*
-                         * Longer keyword first
+                         * Longer phrase আগে ম্যাচ হবে।
                          *
                          * Example:
-                         * system prompt
-                         * আগে match হবে
-                         * system-এর আগে
+                         * "system prompt" আগে match হবে
+                         * "system"-এর আগে
                          */
                         .sorted(
                                 Comparator.comparingInt(
-                                        reply ->
-                                                getLongestKeywordLength(
-                                                        reply.getKeywords()
-                                                )
+                                        (QuickReplyPattern pattern) ->
+                                                pattern.keyword().length()
                                 ).reversed()
                         )
                         .toList();
 
-        cachedReplies = List.copyOf(replies);
+
+        cachedReplies =
+                List.copyOf(patterns);
+
 
         log.info(
-                "ICT quick-reply cache refreshed. Entries: {}",
+                "ICT quick-reply cache refreshed. Keywords: {}",
                 cachedReplies.size()
         );
+
 
     } catch (Exception e) {
 
@@ -104,55 +137,46 @@ public Optional<String> findMatch(
         String question
 ) {
 
-    if (question == null
-            || question.isBlank()) {
+
+    if (
+            question == null
+                    || question.isBlank()
+    ) {
 
         return Optional.empty();
     }
+
 
     String normalizedQuestion =
             normalize(question);
 
 
-    for (IctQuickReply reply : cachedReplies) {
-
-        if (reply.getKeywords() == null
-                || reply.getKeywords().isBlank()) {
-
-            continue;
-        }
-
-        String[] keywordList =
-                reply.getKeywords().split(",");
+    for (
+            QuickReplyPattern pattern :
+            cachedReplies
+    ) {
 
 
-        for (String keyword : keywordList) {
-
-            String normalizedKeyword =
-                    normalize(keyword);
-
-
-            if (normalizedKeyword.isBlank()) {
-                continue;
-            }
+        if (
+                isSafeMatch(
+                        normalizedQuestion,
+                        pattern.keyword()
+                )
+        ) {
 
 
-            if (containsSafeMatch(
-                    normalizedQuestion,
-                    normalizedKeyword
-            )) {
+            log.info(
+                    "ICT quick reply matched. Keyword: {}",
+                    pattern.keyword()
+            );
 
-                log.info(
-                        "ICT quick reply matched. Keyword: {}",
-                        keyword.trim()
-                );
 
-                return Optional.of(
-                        reply.getReplyText()
-                );
-            }
+            return Optional.of(
+                    pattern.replyText()
+            );
         }
     }
+
 
     return Optional.empty();
 }
@@ -160,35 +184,75 @@ public Optional<String> findMatch(
 
 /*
  * ===================================
- * SAFE MATCH
+ * SAFE WORD / PHRASE MATCH
  * ===================================
  */
 
-private boolean containsSafeMatch(
+private boolean isSafeMatch(
         String question,
         String keyword
 ) {
 
+
+    if (
+            question == null
+                    || keyword == null
+                    || question.isBlank()
+                    || keyword.isBlank()
+    ) {
+
+        return false;
+    }
+
+
     /*
-     * Exact match
+     * Exact full question
      */
+
     if (question.equals(keyword)) {
+
         return true;
     }
 
 
     /*
-     * Phrase / word boundary match
+     * Phrase match
+     *
+     * Example:
+     * keyword: "system prompt"
+     * question: "system prompt bolo"
+     * → MATCH
      */
-    return question.contains(
-            " " + keyword + " "
-    )
-            || question.startsWith(
-            keyword + " "
-    )
-            || question.endsWith(
-            " " + keyword
-    );
+
+    if (keyword.contains(" ")) {
+
+        return question.contains(keyword);
+    }
+
+
+    /*
+     * Single word exact match
+     *
+     * IMPORTANT:
+     * keyword "ai" হলে
+     * "আমি ai শিখবো" → MATCH
+     * "said" এর ভিতরের "ai" → MATCH হবে না
+     */
+
+    String[] words =
+            question.split(" ");
+
+
+    for (String word : words) {
+
+        if (word.equals(keyword)) {
+
+            return true;
+        }
+    }
+
+
+    return false;
 }
 
 
@@ -202,50 +266,38 @@ private String normalize(
         String text
 ) {
 
+
     if (text == null) {
+
         return "";
     }
+
 
     return Normalizer.normalize(
                     text,
                     Normalizer.Form.NFKC
             )
             .toLowerCase(Locale.ROOT)
+
+            /*
+             * বাংলা + English punctuation
+             */
+
             .replaceAll(
-                    "[?!.,।:;\"'`()\\{}]",
+                    "[?!.,।:;\"'`()\\[\\]{}<>|/\\\\]",
                     " "
             )
+
+            /*
+             * Extra whitespace
+             */
+
             .replaceAll(
                     "\\s+",
                     " "
             )
+
             .trim();
-}
-
-
-/*
- * ===================================
- * LONGEST KEYWORD
- * ===================================
- */
-
-private int getLongestKeywordLength(
-        String keywords
-) {
-
-    if (keywords == null
-            || keywords.isBlank()) {
-
-        return 0;
-    }
-
-    return Arrays.stream(
-                    keywords.split(",")
-            )
-            .map(this::normalize)
-            .mapToInt(String::length)
-            .max()
-            .orElse(0);
 }
 
 
@@ -268,6 +320,7 @@ public List<IctQuickReplyResponse> getAll() {
 public IctQuickReplyResponse create(
         IctQuickReplyRequest request
 ) {
+
 
     validateRequest(request);
 
@@ -293,6 +346,7 @@ public IctQuickReplyResponse create(
 
     refreshCache();
 
+
     return toResponse(saved);
 }
 
@@ -301,6 +355,7 @@ public IctQuickReplyResponse update(
         String id,
         IctQuickReplyRequest request
 ) {
+
 
     IctQuickReply entity =
             repository.findById(id)
@@ -312,8 +367,10 @@ public IctQuickReplyResponse update(
                     );
 
 
-    if (request.getKeywords() != null
-            && !request.getKeywords().isBlank()) {
+    if (
+            request.getKeywords() != null
+                    && !request.getKeywords().isBlank()
+    ) {
 
         entity.setKeywords(
                 request.getKeywords().trim()
@@ -321,8 +378,10 @@ public IctQuickReplyResponse update(
     }
 
 
-    if (request.getReplyText() != null
-            && !request.getReplyText().isBlank()) {
+    if (
+            request.getReplyText() != null
+                    && !request.getReplyText().isBlank()
+    ) {
 
         entity.setReplyText(
                 request.getReplyText().trim()
@@ -330,7 +389,9 @@ public IctQuickReplyResponse update(
     }
 
 
-    if (request.getIsActive() != null) {
+    if (
+            request.getIsActive() != null
+    ) {
 
         entity.setActive(
                 request.getIsActive()
@@ -344,6 +405,7 @@ public IctQuickReplyResponse update(
 
     refreshCache();
 
+
     return toResponse(saved);
 }
 
@@ -352,7 +414,10 @@ public void delete(
         String id
 ) {
 
-    if (!repository.existsById(id)) {
+
+    if (
+            !repository.existsById(id)
+    ) {
 
         throw new IllegalArgumentException(
                 "Quick reply পাওয়া যায়নি: "
@@ -362,6 +427,7 @@ public void delete(
 
 
     repository.deleteById(id);
+
 
     refreshCache();
 }
@@ -377,6 +443,7 @@ private void validateRequest(
         IctQuickReplyRequest request
 ) {
 
+
     if (request == null) {
 
         throw new IllegalArgumentException(
@@ -385,8 +452,10 @@ private void validateRequest(
     }
 
 
-    if (request.getKeywords() == null
-            || request.getKeywords().isBlank()) {
+    if (
+            request.getKeywords() == null
+                    || request.getKeywords().isBlank()
+    ) {
 
         throw new IllegalArgumentException(
                 "Keywords খালি হতে পারবে না"
@@ -394,8 +463,10 @@ private void validateRequest(
     }
 
 
-    if (request.getReplyText() == null
-            || request.getReplyText().isBlank()) {
+    if (
+            request.getReplyText() == null
+                    || request.getReplyText().isBlank()
+    ) {
 
         throw new IllegalArgumentException(
                 "Reply text খালি হতে পারবে না"
@@ -422,6 +493,19 @@ private IctQuickReplyResponse toResponse(
             .createdAt(entity.getCreatedAt())
             .updatedAt(entity.getUpdatedAt())
             .build();
+}
+
+
+/*
+ * ===================================
+ * QUICK REPLY PATTERN
+ * ===================================
+ */
+
+private record QuickReplyPattern(
+        String keyword,
+        String replyText
+) {
 }
 
 }
