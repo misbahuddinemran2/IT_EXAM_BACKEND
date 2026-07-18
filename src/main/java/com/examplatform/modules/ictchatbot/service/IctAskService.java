@@ -32,6 +32,7 @@ public class IctAskService {
 private final IctAnswerCacheRepository cacheRepository;
 private final IctBookChunkRepository chunkRepository;
 private final EmbeddingService embeddingService;
+private final IctQuickReplyService quickReplyService;
 
 private final ObjectMapper objectMapper = new ObjectMapper();
 private final RestTemplate restTemplate = createRestTemplate();
@@ -93,7 +94,18 @@ public IctAskResponse ask(String question, String userId) {
     // 2. Rate limit — userId ভিত্তিক (login বাধ্যতামূলক)
     checkRateLimit(userId);
 
-    // 3. Generate embedding
+    // 3. Quick-reply check (greeting/casual প্রশ্ন) — embedding call এর আগেই
+    Optional<String> quickReply = quickReplyService.findMatch(question);
+    if (quickReply.isPresent()) {
+        return IctAskResponse.builder()
+                .answer(quickReply.get())
+                .sourceWriters(List.of())
+                .diagramUrls(List.of())
+                .fromCache(false)
+                .build();
+    }
+
+    // 4. Generate embedding
     float[] questionEmbeddingArray;
 
     try {
@@ -108,7 +120,7 @@ public IctAskResponse ask(String question, String userId) {
             floatArrayToVectorString(questionEmbeddingArray);
 
 
-    // 4. Cache check
+    // 5. Cache check
     List<IctAnswerCache> cacheHits =
             cacheRepository.findClosestMatch(
                     questionEmbeddingStr,
@@ -142,7 +154,7 @@ public IctAskResponse ask(String question, String userId) {
     }
 
 
-    // 5. Vector search
+    // 6. Vector search
     List<IctBookChunk> similarChunks =
             chunkRepository.findSimilarChunks(
                     questionEmbeddingStr,
@@ -161,7 +173,7 @@ public IctAskResponse ask(String question, String userId) {
     }
 
 
-    // 6. Generate answer from BOOK_CONTEXT only
+    // 7. Generate answer from BOOK_CONTEXT only
     String answer;
 
     try {
@@ -179,11 +191,11 @@ public IctAskResponse ask(String question, String userId) {
     }
 
 
-    // 7. Final answer validation
+    // 8. Final answer validation
     answer = validateAnswer(answer);
 
 
-    // 8. Source writers
+    // 9. Source writers
     List<String> sourceWriters =
             similarChunks.stream()
                     .map(IctBookChunk::getWriterName)
@@ -193,7 +205,7 @@ public IctAskResponse ask(String question, String userId) {
                     .collect(Collectors.toList());
 
 
-    // 9. Diagram URLs
+    // 10. Diagram URLs
     List<String> diagramUrls =
             similarChunks.stream()
                     .map(IctBookChunk::getDiagramUrl)
@@ -229,7 +241,7 @@ public IctAskResponse ask(String question, String userId) {
     }
 
 
-    // 10. Final response
+    // 11. Final response
     return IctAskResponse.builder()
             .answer(answer)
             .sourceWriters(sourceWriters)
@@ -285,12 +297,6 @@ private String validateAndSanitizeQuestion(String question) {
  */
 
 private void checkRateLimit(String userId) {
-
-    /*
-     * userId ভিত্তিক rate limit।
-     * /ict/ask এখন authenticated() হওয়ায় userId
-     * সবসময় থাকা উচিত, তবু safety fallback রাখা হলো।
-     */
 
     String key = (userId != null && !userId.isBlank())
             ? userId
