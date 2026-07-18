@@ -357,7 +357,8 @@ public IctAskResponse ask(
     }
 
 
-    /*
+    
+/*
      * 9️⃣ FINAL ANSWER VALIDATION
      */
 
@@ -366,17 +367,32 @@ public IctAskResponse ask(
 
 
     /*
+     * NOT_FOUND হলে sourceWriters/diagramUrls
+     * খালি রাখা হচ্ছে — কারণ Gemini প্রশ্নের উত্তর
+     * বইয়ে পায়নি বলে জানালেও vector search
+     * সবসময় TOP_K chunk রিটার্ন করে (এমনকি
+     * অপ্রাসঙ্গিক হলেও), তাই সেই chunk-এর লেখক
+     * ভুলভাবে "সোর্স" হিসেবে দেখানো ঠিক না।
+     */
+
+    boolean answerFound =
+            !NOT_FOUND_MESSAGE.equals(answer);
+
+
+    /*
      * 🔟 SOURCE WRITERS
      */
 
     List<String> sourceWriters =
-            similarChunks.stream()
-                    .map(IctBookChunk::getWriterName)
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(writer -> !writer.isBlank())
-                    .distinct()
-                    .collect(Collectors.toList());
+            answerFound
+                    ? similarChunks.stream()
+                            .map(IctBookChunk::getWriterName)
+                            .filter(Objects::nonNull)
+                            .map(String::trim)
+                            .filter(writer -> !writer.isBlank())
+                            .distinct()
+                            .collect(Collectors.toList())
+                    : List.of();
 
 
     /*
@@ -384,14 +400,15 @@ public IctAskResponse ask(
      */
 
     List<String> diagramUrls =
-            similarChunks.stream()
-                    .map(IctBookChunk::getDiagramUrl)
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(url -> !url.isBlank())
-                    .distinct()
-                    .collect(Collectors.toList());
-
+            answerFound
+                    ? similarChunks.stream()
+                            .map(IctBookChunk::getDiagramUrl)
+                            .filter(Objects::nonNull)
+                            .map(String::trim)
+                            .filter(url -> !url.isBlank())
+                            .distinct()
+                            .collect(Collectors.toList())
+                    : List.of();
 
     /*
      * 1️⃣2️⃣ CACHE SAVE
