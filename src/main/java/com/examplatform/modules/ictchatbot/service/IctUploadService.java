@@ -1,13 +1,16 @@
+
 package com.examplatform.modules.ictchatbot.service;
 
 import com.examplatform.modules.ictchatbot.dto.IctUploadReviewRequest;
 import com.examplatform.modules.ictchatbot.entity.IctOcrUpload;
 import com.examplatform.modules.ictchatbot.enums.IctUploadStatus;
+import com.examplatform.modules.ictchatbot.repository.IctBookChunkRepository;
 import com.examplatform.modules.ictchatbot.repository.IctOcrUploadRepository;
 import com.examplatform.modules.written.submission.service.ImageKitUploadService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -18,6 +21,7 @@ import java.util.List;
 public class IctUploadService {
 
     private final IctOcrUploadRepository uploadRepository;
+    private final IctBookChunkRepository chunkRepository;
     private final OcrService ocrService;
     private final ImageKitUploadService imageKitUploadService;
 
@@ -96,5 +100,21 @@ public class IctUploadService {
         upload.setReviewedAt(LocalDateTime.now());
 
         return uploadRepository.save(upload);
+    }
+
+    /**
+     * Upload delete করে। যদি এই upload থেকে ইতিমধ্যে chunk তৈরি হয়ে থাকে
+     * (status VECTORIZED), তাহলে আগে সেই chunk গুলো cascade delete করা হয়,
+     * তারপর upload row টা মুছে ফেলা হয়।
+     */
+    @Transactional
+    public void deleteUpload(String id) {
+        IctOcrUpload upload = uploadRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Upload not found: " + id));
+
+        // এই upload থেকে তৈরি হওয়া সব chunk আগে মুছে ফেলা (থাকলে)
+        chunkRepository.deleteBySourceUploadId(id);
+
+        uploadRepository.delete(upload);
     }
 }
