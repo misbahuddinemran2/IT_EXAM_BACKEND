@@ -1,4 +1,3 @@
-
 package com.examplatform.modules.ictchatbot.repository;
 
 import com.examplatform.modules.ictchatbot.entity.IctBookChunk;
@@ -41,4 +40,17 @@ public interface IctBookChunkRepository extends JpaRepository<IctBookChunk, Stri
     List<Object[]> findSimilarChunksWithDistance(@Param("embedding") String embedding,
                                                   @Param("writerName") String writerName,
                                                   @Param("topK") int topK);
+
+    // সবচেয়ে কাছের chunk এর distance value (single column, safe mapping)
+    // off-topic প্রশ্ন detect করার জন্য ব্যবহৃত - threshold এর বাইরে হলে
+    // Gemini generate call করার আগেই NOT_FOUND রিটার্ন করা যায়
+    @Query(value = """
+        SELECT (c.embedding <=> CAST(:embedding AS vector))
+        FROM ict_book_chunk c
+        WHERE (:writerName IS NULL OR c.writer_name = :writerName)
+        ORDER BY c.embedding <=> CAST(:embedding AS vector)
+        LIMIT 1
+        """, nativeQuery = true)
+    Double findClosestDistance(@Param("embedding") String embedding,
+                                @Param("writerName") String writerName);
 }
