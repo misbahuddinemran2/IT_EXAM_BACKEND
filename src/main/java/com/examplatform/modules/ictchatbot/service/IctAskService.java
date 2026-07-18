@@ -58,6 +58,25 @@ private String model;
 private static final double CACHE_DISTANCE_THRESHOLD =
         0.05;
 
+/*
+ * VECTOR_DISTANCE_THRESHOLD:
+ *
+ * সবচেয়ে কাছের chunk এর cosine distance এই ভ্যালুর
+ * চেয়ে বেশি হলে ধরে নেওয়া হবে প্রশ্নটা ICT বইয়ের
+ * সাথে সম্পূর্ণ অপ্রাসঙ্গিক (off-topic) - তখন Gemini
+ * generate call না করেই সরাসরি NOT_FOUND রিটার্ন হবে।
+ *
+ * ⚠️ এই ভ্যালুটা প্রাথমিক অনুমান (0.45)। Deploy করার পর
+ * HF Space Logs এ কয়েকটা on-topic এবং off-topic প্রশ্নের
+ * "Closest chunk distance" log দেখে এটা calibrate/টিউন
+ * করা দরকার। কম হলে (0.3-এর মতো) বেশি প্রশ্ন off-topic
+ * ধরা পড়বে (false positive ঝুঁকি), বেশি হলে (0.6+) কম
+ * প্রশ্ন ধরা পড়বে (Gemini call কম বাঁচবে)।
+ */
+
+private static final double VECTOR_DISTANCE_THRESHOLD =
+        0.45;
+
 private static final int TOP_K = 5;
 
 private static final int MAX_QUESTION_LENGTH = 500;
@@ -280,6 +299,60 @@ public IctAskResponse ask(
         log.warn(
                 "Invalid cached answer detected. Ignoring cache."
         );
+    }
+
+
+    /*
+     * 5.5️⃣ VECTOR DISTANCE THRESHOLD CHECK
+     *
+     * প্রশ্নটা ICT বইয়ের সাথে কতটা প্রাসঙ্গিক তা
+     * closest chunk এর distance দিয়ে যাচাই করা হচ্ছে।
+     * Threshold এর বাইরে হলে Gemini generate call
+     * এড়িয়ে সরাসরি NOT_FOUND রিটার্ন করা হবে।
+     */
+
+    Double closestDistance;
+
+    try {
+
+        closestDistance =
+                chunkRepository.findClosestDistance(
+                        questionEmbeddingStr,
+                        null
+                );
+
+    } catch (Exception e) {
+
+        log.warn(
+                "Closest distance lookup failed. Proceeding without threshold check.",
+                e
+        );
+
+        closestDistance = null;
+    }
+
+
+    log.info(
+            "Closest chunk distance for question: {}",
+            closestDistance
+    );
+
+
+    if (closestDistance == null
+            || closestDistance > VECTOR_DISTANCE_THRESHOLD) {
+
+
+        log.info(
+                "Question appears off-topic (distance beyond threshold). Skipping Gemini call."
+        );
+
+
+        return IctAskResponse.builder()
+                .answer(NOT_FOUND_MESSAGE)
+                .sourceWriters(List.of())
+                .diagramUrls(List.of())
+                .fromCache(false)
+                .build();
     }
 
 
