@@ -1,3 +1,4 @@
+
 package com.examplatform.modules.ictchatbot.controller;
 
 import com.examplatform.modules.ictchatbot.dto.IctUploadListResponse;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -105,5 +107,14 @@ public class IctUploadController {
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/uploads/{id}")
+    public ResponseEntity<Map<String, Object>> deleteUpload(@PathVariable("id") String id) {
+        uploadService.deleteUpload(id);
+        return ResponseEntity.ok(Map.of(
+                "id", id,
+                "deleted", true
+        ));
     }
 }
