@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/ict/query-log")
@@ -25,25 +26,22 @@ public class IctQueryLogAdminController {
                 .build();
     }
 
-    // আগে শুধু summarize করুন, raw log এখনো মুছবে না — review করার জন্য নিরাপদ ধাপ
     @PostMapping("/summarize")
     public Map<String, Object> summarizeOnly() {
         int count = queryLogService.summarizeOnly();
-        return Map.of("summaryRowsCreated", count);
+        return Map.of("questionsProcessed", count);
     }
 
-    // Raw log সম্পূর্ণ মুছে ফেলা (summarize করার পরে, ম্যানুয়ালি কল করবেন)
     @PostMapping("/cleanup")
     public Map<String, Object> cleanup() {
         long deletedCount = queryLogService.cleanupRawLog();
         return Map.of("rawLogRowsDeleted", deletedCount);
     }
 
-    // সুবিধার জন্য — একসাথে summarize + cleanup
     @PostMapping("/summarize-and-cleanup")
     public Map<String, Object> summarizeAndCleanup() {
         int count = queryLogService.summarizeAndCleanup();
-        return Map.of("summaryRowsCreated", count);
+        return Map.of("questionsProcessed", count);
     }
 
     @GetMapping("/top-gemini-calls")
@@ -59,5 +57,19 @@ public class IctQueryLogAdminController {
     @GetMapping("/summaries")
     public List<IctQuerySummary> getAllSummaries() {
         return queryLogService.getAllSummaries();
+    }
+
+    // একটা নির্দিষ্ট summary entry মুছে ফেলা
+    @DeleteMapping("/summaries/{id}")
+    public Map<String, Object> deleteSummary(@PathVariable UUID id) {
+        queryLogService.deleteSummary(id);
+        return Map.of("deleted", true);
+    }
+
+    // একাধিক (mark করা) summary entry একসাথে মুছে ফেলা
+    @PostMapping("/summaries/bulk-delete")
+    public Map<String, Object> bulkDeleteSummaries(@RequestBody List<UUID> ids) {
+        int count = queryLogService.deleteSummaries(ids);
+        return Map.of("deletedCount", count);
     }
 }
