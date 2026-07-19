@@ -22,10 +22,6 @@ public class IctQueryLogService {
     private final IctQueryLogRepository queryLogRepository;
     private final IctQuerySummaryRepository querySummaryRepository;
 
-    /*
-     * প্রতিটা /ict/ask কলের পরে এটা call হবে।
-     * কখনোই মূল ask() flow ব্যর্থ করবে না — caller try-catch দিয়ে wrap করবে।
-     */
     public void log(
             String userId,
             String question,
@@ -33,7 +29,8 @@ public class IctQueryLogService {
             boolean answerFound,
             String matchedWriterNames,
             Double closestChunkDistance,
-            long responseTimeMs
+            long responseTimeMs,
+            String answerText
     ) {
 
         IctQueryLog entry = IctQueryLog.builder()
@@ -44,6 +41,7 @@ public class IctQueryLogService {
                 .matchedWriterNames(matchedWriterNames)
                 .closestChunkDistance(closestChunkDistance)
                 .responseTimeMs((int) responseTimeMs)
+                .answerText(answerText)
                 .build();
 
         queryLogRepository.save(entry);
@@ -53,9 +51,6 @@ public class IctQueryLogService {
         return queryLogRepository.count();
     }
 
-    /*
-     * ম্যানুয়াল ট্রিগার — summarize করে raw log এ কিছুই মুছবে না (নিরাপদ ধাপ)
-     */
     @Transactional
     public int summarizeOnly() {
 
@@ -66,10 +61,6 @@ public class IctQueryLogService {
         }
 
         LocalDateTime periodEnd = LocalDateTime.now();
-        // period_start হিসেবে সবচেয়ে পুরনো raw log এর সময় ব্যবহার করা যেত,
-        // simplicity-র জন্য summarize call এর সময়টাই period_end হিসেবে রাখা হলো
-        // এবং period_start = period_end - কোনো fixed window ধরার দরকার নেই যেহেতু
-        // raw log নিজেই bounded (আগের cleanup থেকে এই মুহূর্ত পর্যন্ত)
 
         int savedCount = 0;
 
@@ -81,9 +72,10 @@ public class IctQueryLogService {
             long quickReplyCount = ((Number) row[3]).longValue();
             long cacheHitCount = ((Number) row[4]).longValue();
             long geminiGeneratedCount = ((Number) row[5]).longValue();
+            String sampleAnswer = row[6] != null ? (String) row[6] : null;
 
             IctQuerySummary summary = IctQuerySummary.builder()
-                    .periodStart(periodEnd) // caller চাইলে ভবিষ্যতে সঠিক MIN(created_at) যোগ করতে পারে
+                    .periodStart(periodEnd)
                     .periodEnd(periodEnd)
                     .question(question)
                     .askCount((int) askCount)
@@ -91,6 +83,7 @@ public class IctQueryLogService {
                     .quickReplyCount((int) quickReplyCount)
                     .cacheHitCount((int) cacheHitCount)
                     .geminiGeneratedCount((int) geminiGeneratedCount)
+                    .sampleAnswer(sampleAnswer)
                     .build();
 
             querySummaryRepository.save(summary);
@@ -102,9 +95,6 @@ public class IctQueryLogService {
         return savedCount;
     }
 
-    /*
-     * Raw log সম্পূর্ণ খালি করে দেয় (summarize করার পরে কল করা উচিত)
-     */
     @Transactional
     public long cleanupRawLog() {
 
@@ -117,9 +107,6 @@ public class IctQueryLogService {
         return countBefore;
     }
 
-    /*
-     * সুবিধার জন্য — summarize + cleanup একসাথে
-     */
     @Transactional
     public int summarizeAndCleanup() {
 
