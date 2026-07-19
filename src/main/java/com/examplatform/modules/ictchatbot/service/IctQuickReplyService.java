@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 public class IctQuickReplyService {
 
 private final IctQuickReplyRepository repository;
+private final IctIntentDetectorService intentDetectorService;
 
 
 /*
@@ -86,11 +87,11 @@ public void refreshCache() {
                                     )
                                     .map(keyword -> {
 
-                                        IctIntentDetector.Intent intent =
-                                                IctIntentDetector.detect(keyword);
+                                        IctIntentDetectorService.Intent intent =
+                                                intentDetectorService.detect(keyword);
 
                                         String topic =
-                                                IctIntentDetector.extractTopic(
+                                                intentDetectorService.extractTopic(
                                                         keyword, intent
                                                 );
 
@@ -233,12 +234,12 @@ private Optional<String> smartMatch(
     }
 
 
-    IctIntentDetector.Intent questionIntent =
-            IctIntentDetector.detect(normalizedQuestion);
+    IctIntentDetectorService.Intent questionIntent =
+            intentDetectorService.detect(normalizedQuestion);
 
 
     String questionTopic =
-            IctIntentDetector.extractTopic(
+            intentDetectorService.extractTopic(
                     normalizedQuestion,
                     questionIntent
             );
@@ -262,7 +263,7 @@ private Optional<String> smartMatch(
 
 
         boolean intentMatch =
-                questionIntent != IctIntentDetector.Intent.UNKNOWN
+                questionIntent != IctIntentDetectorService.Intent.UNKNOWN
                         && questionIntent == pattern.intent();
 
 
@@ -667,7 +668,7 @@ private record QuickReplyPattern(
         String keyword,
         String replyText,
         String topic,
-        IctIntentDetector.Intent intent
+        IctIntentDetectorService.Intent intent
 ) {
 }
 
