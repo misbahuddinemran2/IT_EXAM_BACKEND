@@ -34,6 +34,7 @@ private final IctAnswerCacheRepository cacheRepository;
 private final IctBookChunkRepository chunkRepository;
 private final EmbeddingService embeddingService;
 private final IctQuickReplyService quickReplyService;
+private final IctQueryLogService queryLogService;
 
 private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -66,12 +67,9 @@ private static final double CACHE_DISTANCE_THRESHOLD =
  * সাথে সম্পূর্ণ অপ্রাসঙ্গিক (off-topic) - তখন Gemini
  * generate call না করেই সরাসরি NOT_FOUND রিটার্ন হবে।
  *
- * ⚠️ এই ভ্যালুটা প্রাথমিক অনুমান (0.45)। Deploy করার পর
- * HF Space Logs এ কয়েকটা on-topic এবং off-topic প্রশ্নের
- * "Closest chunk distance" log দেখে এটা calibrate/টিউন
- * করা দরকার। কম হলে (0.3-এর মতো) বেশি প্রশ্ন off-topic
- * ধরা পড়বে (false positive ঝুঁকি), বেশি হলে (0.6+) কম
- * প্রশ্ন ধরা পড়বে (Gemini call কম বাঁচবে)।
+ * ⚠️ এই ভ্যালুটা প্রাথমিক অনুমান (0.45)। HF Space Logs এ
+ * on-topic এবং off-topic প্রশ্নের "Closest chunk distance"
+ * log দেখে এটা calibrate/টিউন করা দরকার।
  */
 
 private static final double VECTOR_DISTANCE_THRESHOLD =
@@ -100,6 +98,46 @@ private static final String AI_ERROR_MESSAGE =
 
 /*
  * ===================================
+ * SAFE QUERY LOGGING
+ *
+ * এই লগিং কখনোই মূল ask() flow ব্যর্থ করবে না।
+ * ===================================
+ */
+
+private void safeLog(
+        String userId,
+        String question,
+        String responsePath,
+        boolean answerFound,
+        String matchedWriterNames,
+        Double closestChunkDistance,
+        long startTime
+) {
+
+    try {
+
+        long responseTimeMs =
+                System.currentTimeMillis() - startTime;
+
+        queryLogService.log(
+                userId,
+                question,
+                responsePath,
+                answerFound,
+                matchedWriterNames,
+                closestChunkDistance,
+                responseTimeMs
+        );
+
+    } catch (Exception e) {
+
+        log.warn("Query logging failed (non-critical)", e);
+    }
+}
+
+
+/*
+ * ===================================
  * RATE LIMIT STORAGE
  * ===================================
  */
@@ -118,6 +156,8 @@ public IctAskResponse ask(
         String question,
         String userId
 ) {
+
+    long startTime = System.currentTimeMillis();
 
     /*
      * 1️⃣ Basic input validation
@@ -174,6 +214,7 @@ public IctAskResponse ask(
                 "Quick reply matched. Skipping embedding, cache and Gemini."
         );
 
+        safeLog(userId, question, "QUICK_REPLY", true, null, null, startTime);
 
         return IctAskResponse.builder()
                 .answer(quickReply.get())
@@ -282,6 +323,7 @@ public IctAskResponse ask(
                     "ICT answer served from cache"
             );
 
+            safeLog(userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, startTime);
 
             return IctAskResponse.builder()
                     .answer(cachedAnswer)
@@ -346,6 +388,7 @@ public IctAskResponse ask(
                 "Question appears off-topic (distance beyond threshold). Skipping Gemini call."
         );
 
+        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime);
 
         return IctAskResponse.builder()
                 .answer(NOT_FOUND_MESSAGE)
@@ -392,6 +435,7 @@ public IctAskResponse ask(
     if (similarChunks == null
             || similarChunks.isEmpty()) {
 
+        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime);
 
         return IctAskResponse.builder()
                 .answer(NOT_FOUND_MESSAGE)
@@ -430,8 +474,7 @@ public IctAskResponse ask(
     }
 
 
-    
-/*
+    /*
      * 9️⃣ FINAL ANSWER VALIDATION
      */
 
@@ -521,6 +564,17 @@ public IctAskResponse ask(
             );
         }
     }
+
+
+    safeLog(
+            userId,
+            question,
+            answerFound ? "GEMINI_GENERATED" : "NOT_FOUND",
+            answerFound,
+            String.join(",", sourceWriters),
+            closestDistance,
+            startTime
+    );
 
 
     /*
@@ -799,10 +853,6 @@ private String generateAnswerFromChunks(
                             question
                     );
 
-
-    /*
-     * Gemini request body
-     */
 
     var partsArray =
             objectMapper.createArrayNode();
