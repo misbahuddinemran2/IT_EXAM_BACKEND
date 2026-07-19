@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -51,6 +53,11 @@ public class IctQueryLogService {
         return queryLogRepository.count();
     }
 
+    /*
+     * Summarize এখন UPSERT করে — একই প্রশ্ন আগে থেকে summary টেবিলে থাকলে
+     * সেই row এর count গুলো নতুন raw log এর ভ্যালু দিয়ে যোগ (accumulate) হবে,
+     * নতুন row তৈরি হবে না। এভাবে বারবার summarize করলেও ডুপ্লিকেট জমবে না।
+     */
     @Transactional
     public int summarizeOnly() {
 
@@ -60,9 +67,9 @@ public class IctQueryLogService {
             return 0;
         }
 
-        LocalDateTime periodEnd = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
 
-        int savedCount = 0;
+        int processedCount = 0;
 
         for (Object[] row : rows) {
 
@@ -74,25 +81,49 @@ public class IctQueryLogService {
             long geminiGeneratedCount = ((Number) row[5]).longValue();
             String sampleAnswer = row[6] != null ? (String) row[6] : null;
 
-            IctQuerySummary summary = IctQuerySummary.builder()
-                    .periodStart(periodEnd)
-                    .periodEnd(periodEnd)
-                    .question(question)
-                    .askCount((int) askCount)
-                    .notFoundCount((int) notFoundCount)
-                    .quickReplyCount((int) quickReplyCount)
-                    .cacheHitCount((int) cacheHitCount)
-                    .geminiGeneratedCount((int) geminiGeneratedCount)
-                    .sampleAnswer(sampleAnswer)
-                    .build();
+            Optional<IctQuerySummary> existing =
+                    querySummaryRepository.findByQuestion(question);
 
-            querySummaryRepository.save(summary);
-            savedCount++;
+            if (existing.isPresent()) {
+
+                IctQuerySummary summary = existing.get();
+
+                summary.setAskCount(summary.getAskCount() + (int) askCount);
+                summary.setNotFoundCount(summary.getNotFoundCount() + (int) notFoundCount);
+                summary.setQuickReplyCount(summary.getQuickReplyCount() + (int) quickReplyCount);
+                summary.setCacheHitCount(summary.getCacheHitCount() + (int) cacheHitCount);
+                summary.setGeminiGeneratedCount(summary.getGeminiGeneratedCount() + (int) geminiGeneratedCount);
+                summary.setPeriodEnd(now);
+
+                if (sampleAnswer != null) {
+                    summary.setSampleAnswer(sampleAnswer);
+                }
+
+                querySummaryRepository.save(summary);
+
+            } else {
+
+                IctQuerySummary summary = IctQuerySummary.builder()
+                        .periodStart(now)
+                        .periodEnd(now)
+                        .question(question)
+                        .askCount((int) askCount)
+                        .notFoundCount((int) notFoundCount)
+                        .quickReplyCount((int) quickReplyCount)
+                        .cacheHitCount((int) cacheHitCount)
+                        .geminiGeneratedCount((int) geminiGeneratedCount)
+                        .sampleAnswer(sampleAnswer)
+                        .build();
+
+                querySummaryRepository.save(summary);
+            }
+
+            processedCount++;
         }
 
-        log.info("Query log summarized. {} summary rows created.", savedCount);
+        log.info("Query log summarized (upsert). {} questions processed.", processedCount);
 
-        return savedCount;
+        return processedCount;
     }
 
     @Transactional
@@ -127,5 +158,33 @@ public class IctQueryLogService {
 
     public List<IctQuerySummary> getAllSummaries() {
         return querySummaryRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    /*
+     * ===================================
+     * SUMMARY DELETE (individual + bulk)
+     * ===================================
+     */
+
+    @Transactional
+    public void deleteSummary(UUID id) {
+        querySummaryRepository.deleteById(id);
+        log.info("Summary entry deleted. id={}", id);
+    }
+
+    @Transactional
+    public int deleteSummaries(List<UUID> ids) {
+
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+
+        List<IctQuerySummary> toDelete = querySummaryRepository.findAllById(ids);
+
+        querySummaryRepository.deleteAll(toDelete);
+
+        log.info("Bulk summary delete. {} entries deleted.", toDelete.size());
+
+        return toDelete.size();
     }
 }
