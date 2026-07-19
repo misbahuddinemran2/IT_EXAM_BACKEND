@@ -45,6 +45,9 @@ public class IctQuerySummary {
     @Column(name = "gemini_generated_count", nullable = false)
     private Integer geminiGeneratedCount;
 
+    @Column(name = "sample_answer", columnDefinition = "TEXT")
+    private String sampleAnswer;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
