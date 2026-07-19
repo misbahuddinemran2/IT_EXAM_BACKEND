@@ -111,7 +111,8 @@ private void safeLog(
         boolean answerFound,
         String matchedWriterNames,
         Double closestChunkDistance,
-        long startTime
+        long startTime,
+        String answerText
 ) {
 
     try {
@@ -126,7 +127,8 @@ private void safeLog(
                 answerFound,
                 matchedWriterNames,
                 closestChunkDistance,
-                responseTimeMs
+                responseTimeMs,
+                answerText
         );
 
     } catch (Exception e) {
@@ -134,7 +136,6 @@ private void safeLog(
         log.warn("Query logging failed (non-critical)", e);
     }
 }
-
 
 /*
  * ===================================
@@ -213,8 +214,7 @@ public IctAskResponse ask(
         log.info(
                 "Quick reply matched. Skipping embedding, cache and Gemini."
         );
-
-        safeLog(userId, question, "QUICK_REPLY", true, null, null, startTime);
+  safeLog(userId, question, "QUICK_REPLY", true, null, null, startTime, null);
 
         return IctAskResponse.builder()
                 .answer(quickReply.get())
@@ -323,8 +323,7 @@ public IctAskResponse ask(
                     "ICT answer served from cache"
             );
 
-            safeLog(userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, startTime);
-
+safeLog(userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, startTime, cachedAnswer);
             return IctAskResponse.builder()
                     .answer(cachedAnswer)
                     .sourceWriters(
@@ -388,7 +387,7 @@ public IctAskResponse ask(
                 "Question appears off-topic (distance beyond threshold). Skipping Gemini call."
         );
 
-        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime);
+        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime, null);
 
         return IctAskResponse.builder()
                 .answer(NOT_FOUND_MESSAGE)
@@ -435,7 +434,7 @@ public IctAskResponse ask(
     if (similarChunks == null
             || similarChunks.isEmpty()) {
 
-        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime);
+        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime, null);
 
         return IctAskResponse.builder()
                 .answer(NOT_FOUND_MESSAGE)
@@ -573,7 +572,8 @@ public IctAskResponse ask(
             answerFound,
             String.join(",", sourceWriters),
             closestDistance,
-            startTime
+            startTime,
+            answerFound ? answer : null
     );
 
 
