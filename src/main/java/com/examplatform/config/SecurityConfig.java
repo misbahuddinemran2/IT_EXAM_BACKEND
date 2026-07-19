@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/ict/ask").authenticated()
+                .requestMatchers("/ict/ask", "/ict/rewrite").authenticated()
                 .anyRequest().permitAll()
             )
             .addFilterBefore(
