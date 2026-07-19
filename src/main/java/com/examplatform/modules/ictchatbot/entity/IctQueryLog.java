@@ -43,6 +43,9 @@ public class IctQueryLog {
     @Column(name = "response_time_ms")
     private Integer responseTimeMs;
 
+    @Column(name = "answer_text", columnDefinition = "TEXT")
+    private String answerText;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
