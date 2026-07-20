@@ -29,11 +29,39 @@ private final IctIntentDetectorService intentDetectorService;
 
 /*
  * ===================================
+ * QUICK REPLY MATCH RESULT
+ *
+ * matchType: "EXACT" / "SMART" / "CONDITIONAL" / "NONE"
+ * answer: শুধু EXACT/SMART এ থাকবে (CONDITIONAL/NONE এ null)
+ * score: শুধু SMART/CONDITIONAL এ থাকবে
+ * matchedKeyword: যে keyword দিয়ে match/near-match হয়েছে
+ * ===================================
+ */
+
+public record QuickReplyMatchResult(
+        String answer,
+        String matchType,
+        Double score,
+        String matchedKeyword
+) {
+
+    public boolean isMatched() {
+        return answer != null;
+    }
+
+    public static QuickReplyMatchResult none() {
+        return new QuickReplyMatchResult(null, "NONE", null, null);
+    }
+}
+
+
+/*
+ * ===================================
  * IN-MEMORY CACHE
  *
  * প্রতিটা entry এখানে আগে থেকেই
  * split + normalize করা থাকে,
- * যাতে findMatch() কলে বারবার
+ * যাতে match() কলে বারবার
  * এই কাজ করতে না হয়।
  * ===================================
  */
@@ -141,11 +169,11 @@ public void refreshCache() {
 
 /*
  * ===================================
- * QUICK REPLY MATCH
+ * QUICK REPLY MATCH (নতুন public entry point)
  * ===================================
  */
 
-public Optional<String> findMatch(
+public QuickReplyMatchResult match(
         String question
 ) {
 
@@ -155,7 +183,7 @@ public Optional<String> findMatch(
                     || question.isBlank()
     ) {
 
-        return Optional.empty();
+        return QuickReplyMatchResult.none();
     }
 
 
@@ -188,8 +216,11 @@ public Optional<String> findMatch(
             );
 
 
-            return Optional.of(
-                    pattern.replyText()
+            return new QuickReplyMatchResult(
+                    pattern.replyText(),
+                    "EXACT",
+                    null,
+                    pattern.keyword()
             );
         }
     }
@@ -211,15 +242,13 @@ public Optional<String> findMatch(
  * Text Similarity + Intent Match + Topic Match
  * একসাথে যাচাই করে confidence score বের করে।
  *
- * Score >= 95  → সরাসরি Quick Reply Answer
- * Score 90-95  → শুধু log (conservative, প্রথম
- *                version এ answer দেওয়া হবে না)
- * Score < 90   → No match, existing embedding
- *                flow এ যাবে
+ * Score >= 95  → সরাসরি Quick Reply Answer (SMART)
+ * Score 90-95  → CONDITIONAL, answer না, শুধু matchType/score log হয়
+ * Score < 90   → NONE, existing embedding flow এ যাবে
  * ===================================
  */
 
-private Optional<String> smartMatch(
+private QuickReplyMatchResult smartMatch(
         String normalizedQuestion
 ) {
 
@@ -230,7 +259,7 @@ private Optional<String> smartMatch(
                     || cachedReplies.isEmpty()
     ) {
 
-        return Optional.empty();
+        return QuickReplyMatchResult.none();
     }
 
 
@@ -291,7 +320,7 @@ private Optional<String> smartMatch(
 
 
     /*
-     * HIGH CONFIDENCE → সরাসরি answer
+     * HIGH CONFIDENCE → সরাসরি answer (SMART)
      */
 
     if (
@@ -308,8 +337,11 @@ private Optional<String> smartMatch(
         );
 
 
-        return Optional.of(
-                bestMatch.replyText()
+        return new QuickReplyMatchResult(
+                bestMatch.replyText(),
+                "SMART",
+                bestScore,
+                bestMatch.keyword()
         );
     }
 
@@ -333,10 +365,18 @@ private Optional<String> smartMatch(
                 bestMatch.keyword(),
                 normalizedQuestion
         );
+
+
+        return new QuickReplyMatchResult(
+                null,
+                "CONDITIONAL",
+                bestScore,
+                bestMatch.keyword()
+        );
     }
 
 
-    return Optional.empty();
+    return QuickReplyMatchResult.none();
 }
 
 
