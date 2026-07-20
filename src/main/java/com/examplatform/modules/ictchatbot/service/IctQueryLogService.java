@@ -165,7 +165,10 @@ public class IctQueryLogService {
     public List<IctQuerySummary> getAllSummaries() {
         return querySummaryRepository.findAllByOrderByCreatedAtDesc();
     }
-
+    
+public List<IctQuerySummary> getLeastAsked() {
+        return querySummaryRepository.findTopByAskCountAsc();
+    }
     // CONDITIONAL zone raw log entries (matchType tuning এর জন্য)
     public List<IctQueryLog> getConditionalZoneLogs() {
         return queryLogRepository.findByQuickReplyMatchTypeOrderByCreatedAtDesc("CONDITIONAL");
