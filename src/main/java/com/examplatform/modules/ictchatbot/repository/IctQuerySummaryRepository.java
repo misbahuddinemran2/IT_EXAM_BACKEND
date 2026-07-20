@@ -24,5 +24,12 @@ public interface IctQuerySummaryRepository extends JpaRepository<IctQuerySummary
         """)
     List<IctQuerySummary> findTopByNotFoundDesc();
 
+    // সবচেয়ে কম জিজ্ঞাসা হওয়া প্রশ্ন আগে — bulk-delete সহজ করার জন্য
+    @Query("""
+        SELECT s FROM IctQuerySummary s
+        ORDER BY s.askCount ASC
+        """)
+    List<IctQuerySummary> findTopByAskCountAsc();
+
     List<IctQuerySummary> findAllByOrderByCreatedAtDesc();
 }
