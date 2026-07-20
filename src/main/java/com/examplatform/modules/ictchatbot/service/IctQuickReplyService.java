@@ -4,6 +4,7 @@ import com.examplatform.modules.ictchatbot.dto.IctQuickReplyRequest;
 import com.examplatform.modules.ictchatbot.dto.IctQuickReplyResponse;
 import com.examplatform.modules.ictchatbot.entity.IctQuickReply;
 import com.examplatform.modules.ictchatbot.repository.IctQuickReplyRepository;
+import com.examplatform.modules.ictchatbot.repository.IctSynonymRepository;
 
 import jakarta.annotation.PostConstruct;
 
@@ -25,6 +26,7 @@ public class IctQuickReplyService {
 
 private final IctQuickReplyRepository repository;
 private final IctIntentDetectorService intentDetectorService;
+private final IctSynonymRepository synonymRepository;
 
 
 /*
@@ -72,6 +74,18 @@ private volatile List<QuickReplyPattern> cachedReplies =
 
 /*
  * ===================================
+ * SYNONYM CACHE
+ *
+ * word (normalize করা) → canonical word
+ * ===================================
+ */
+
+private volatile Map<String, String> cachedSynonyms =
+        Map.of();
+
+
+/*
+ * ===================================
  * INIT
  * ===================================
  */
@@ -91,6 +105,28 @@ public void init() {
 
 @Scheduled(fixedRate = 5 * 60 * 1000)
 public void refreshCache() {
+
+    try {
+
+        Map<String, String> synonymMap = new HashMap<>();
+
+        for (var entry : synonymRepository.findByIsActiveTrue()) {
+
+            String word = normalizeSynonymWord(entry.getWord());
+            String canonical = normalizeSynonymWord(entry.getCanonicalWord());
+
+            if (!word.isBlank() && !canonical.isBlank()) {
+                synonymMap.put(word, canonical);
+            }
+        }
+
+        cachedSynonyms = Map.copyOf(synonymMap);
+
+        log.info("ICT synonym cache refreshed. Pairs: {}", cachedSynonyms.size());
+
+    } catch (Exception e) {
+        log.error("ICT synonym cache refresh failed", e);
+    }
 
     try {
 
@@ -169,7 +205,10 @@ public void refreshCache() {
 
 /*
  * ===================================
- * QUICK REPLY MATCH (নতুন public entry point)
+ * QUICK REPLY MATCH (public entry point)
+ *
+ * ধাপ ১: original প্রশ্ন দিয়ে EXACT/SMART চেষ্টা
+ * ধাপ ২: না পেলে synonym expansion করে আবার চেষ্টা
  * ===================================
  */
 
@@ -191,10 +230,60 @@ public QuickReplyMatchResult match(
             normalize(question);
 
 
-    /*
-     * ধাপ ১: Existing exact/phrase/word match
-     * (অপরিবর্তিত, আগের মতোই)
-     */
+    // ধাপ ১: original প্রশ্ন দিয়ে প্রথম পাস
+    QuickReplyMatchResult firstPass = tryMatch(normalizedQuestion);
+
+    if ("EXACT".equals(firstPass.matchType()) || "SMART".equals(firstPass.matchType())) {
+        return firstPass;
+    }
+
+
+    // ধাপ ২: synonym expansion করে দ্বিতীয় পাস
+    String expandedQuestion = applySynonyms(normalizedQuestion);
+
+    if (!expandedQuestion.equals(normalizedQuestion)) {
+
+        QuickReplyMatchResult secondPass = tryMatch(expandedQuestion);
+
+        if ("EXACT".equals(secondPass.matchType()) || "SMART".equals(secondPass.matchType())) {
+
+            log.info(
+                    "ICT quick reply matched via synonym expansion. Original: {}, Expanded: {}",
+                    normalizedQuestion, expandedQuestion
+            );
+
+            return secondPass;
+        }
+
+        // synonym pass এ প্রথম পাসের চেয়ে ভালো CONDITIONAL score পেলে সেটাই নেওয়া হবে
+        if ("CONDITIONAL".equals(secondPass.matchType())
+                && (firstPass.score() == null
+                    || (secondPass.score() != null && secondPass.score() > firstPass.score()))) {
+
+            return secondPass;
+        }
+    }
+
+
+    // কোনো পাসেই ভালো কিছু না পেলে প্রথম পাসের ফলাফলই ফেরত (NONE বা CONDITIONAL)
+    return firstPass;
+}
+
+
+/*
+ * ===================================
+ * TRY MATCH
+ *
+ * একটা normalize করা প্রশ্ন দিয়ে
+ * EXACT match চেষ্টা, না পেলে SMART match
+ * (আগের match() মেথডের মূল লজিক, অপরিবর্তিত)
+ * ===================================
+ */
+
+private QuickReplyMatchResult tryMatch(
+        String normalizedQuestion
+) {
+
 
     for (
             QuickReplyPattern pattern :
@@ -225,11 +314,6 @@ public QuickReplyMatchResult match(
         }
     }
 
-
-    /*
-     * ধাপ ২: Exact match না পেলে,
-     * Smart Similarity Matcher fallback
-     */
 
     return smartMatch(normalizedQuestion);
 }
@@ -496,6 +580,74 @@ private String normalize(
             )
 
             .trim();
+}
+
+
+/*
+ * ===================================
+ * NORMALIZE SYNONYM WORD
+ *
+ * synonym টেবিলের word/canonical_word
+ * ছোট normalize (trim + lowercase),
+ * মূল normalize() থেকে হালকা রাখা হয়েছে
+ * ===================================
+ */
+
+private String normalizeSynonymWord(String text) {
+
+    if (text == null) {
+        return "";
+    }
+
+    return text.trim().toLowerCase(Locale.ROOT);
+}
+
+
+/*
+ * ===================================
+ * APPLY SYNONYMS
+ *
+ * প্রশ্নের প্রতিটা শব্দ/phrase synonym টেবিলে
+ * থাকলে canonical word দিয়ে replace করে।
+ * Longer phrase আগে try হয় (multi-word synonym safety)।
+ * ===================================
+ */
+
+private String applySynonyms(String normalizedQuestion) {
+
+    if (normalizedQuestion == null
+            || normalizedQuestion.isBlank()
+            || cachedSynonyms.isEmpty()) {
+
+        return normalizedQuestion;
+    }
+
+    String result = normalizedQuestion;
+
+    List<String> sortedKeys = cachedSynonyms.keySet().stream()
+            .sorted(Comparator.comparingInt(String::length).reversed())
+            .toList();
+
+    for (String word : sortedKeys) {
+
+        String canonical = cachedSynonyms.get(word);
+
+        if (word.contains(" ")) {
+
+            if (result.contains(word)) {
+                result = result.replace(word, canonical);
+            }
+
+        } else {
+
+            result = result.replaceAll(
+                    "\\b" + java.util.regex.Pattern.quote(word) + "\\b",
+                    canonical
+            );
+        }
+    }
+
+    return result.replaceAll("\\s+", " ").trim();
 }
 
 
