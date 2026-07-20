@@ -101,6 +101,10 @@ private static final String AI_ERROR_MESSAGE =
  * SAFE QUERY LOGGING
  *
  * এই লগিং কখনোই মূল ask() flow ব্যর্থ করবে না।
+ *
+ * quickReplyMatchType/Score/MatchedKeyword — Smart Matcher
+ * এই নির্দিষ্ট প্রশ্নে কী score/keyword দিয়েছিল তা raw log এ
+ * সেভ রাখা হয় (per-attempt debugging data)।
  * ===================================
  */
 
@@ -112,7 +116,10 @@ private void safeLog(
         String matchedWriterNames,
         Double closestChunkDistance,
         long startTime,
-        String answerText
+        String answerText,
+        String quickReplyMatchType,
+        Double quickReplyMatchScore,
+        String quickReplyMatchedKeyword
 ) {
 
     try {
@@ -128,7 +135,10 @@ private void safeLog(
                 matchedWriterNames,
                 closestChunkDistance,
                 responseTimeMs,
-                answerText
+                answerText,
+                quickReplyMatchType,
+                quickReplyMatchScore,
+                quickReplyMatchedKeyword
         );
 
     } catch (Exception e) {
@@ -176,11 +186,11 @@ public IctAskResponse ask(
 
 
     /*
-     * 3️⃣ QUICK REPLY / SECURITY REPLY
+     * 3️⃣ QUICK REPLY / SECURITY REPLY (Smart Matcher সহ)
      *
      * খুব গুরুত্বপূর্ণ:
      *
-     * Match হলে এখানেই return হবে।
+     * EXACT/SMART match হলে এখানেই return হবে।
      *
      * এরপর আর:
      * ❌ Embedding
@@ -189,14 +199,20 @@ public IctAskResponse ask(
      * ❌ Gemini
      *
      * কিছুই হবে না।
+     *
+     * CONDITIONAL/NONE হলে matchResult এর তথ্য
+     * (matchType/score/keyword) পরবর্তী প্রতিটা
+     * safeLog() কলে বহন করে নিয়ে যাওয়া হয়, যাতে
+     * এই attempt এ Smart Matcher কী score দিয়েছিল
+     * তা raw log এ ধরা থাকে।
      */
 
-    Optional<String> quickReply;
+    IctQuickReplyService.QuickReplyMatchResult quickReplyResult;
 
     try {
 
-        quickReply =
-                quickReplyService.findMatch(question);
+        quickReplyResult =
+                quickReplyService.match(question);
 
     } catch (Exception e) {
 
@@ -205,19 +221,26 @@ public IctAskResponse ask(
                 e
         );
 
-        quickReply = Optional.empty();
+        quickReplyResult =
+                IctQuickReplyService.QuickReplyMatchResult.none();
     }
 
 
-    if (quickReply.isPresent()) {
+    if (quickReplyResult.isMatched()) {
 
         log.info(
                 "Quick reply matched. Skipping embedding, cache and Gemini."
         );
-  safeLog(userId, question, "QUICK_REPLY", true, null, null, startTime, null);
+
+        safeLog(
+                userId, question, "QUICK_REPLY", true, null, null, startTime, null,
+                quickReplyResult.matchType(),
+                quickReplyResult.score(),
+                quickReplyResult.matchedKeyword()
+        );
 
         return IctAskResponse.builder()
-                .answer(quickReply.get())
+                .answer(quickReplyResult.answer())
                 .sourceWriters(List.of())
                 .diagramUrls(List.of())
                 .fromCache(false)
@@ -323,7 +346,13 @@ public IctAskResponse ask(
                     "ICT answer served from cache"
             );
 
-safeLog(userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, startTime, cachedAnswer);
+            safeLog(
+                    userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, startTime, cachedAnswer,
+                    quickReplyResult.matchType(),
+                    quickReplyResult.score(),
+                    quickReplyResult.matchedKeyword()
+            );
+
             return IctAskResponse.builder()
                     .answer(cachedAnswer)
                     .sourceWriters(
@@ -387,7 +416,12 @@ safeLog(userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, start
                 "Question appears off-topic (distance beyond threshold). Skipping Gemini call."
         );
 
-        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime, null);
+        safeLog(
+                userId, question, "NOT_FOUND", false, null, closestDistance, startTime, null,
+                quickReplyResult.matchType(),
+                quickReplyResult.score(),
+                quickReplyResult.matchedKeyword()
+        );
 
         return IctAskResponse.builder()
                 .answer(NOT_FOUND_MESSAGE)
@@ -434,7 +468,12 @@ safeLog(userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, start
     if (similarChunks == null
             || similarChunks.isEmpty()) {
 
-        safeLog(userId, question, "NOT_FOUND", false, null, closestDistance, startTime, null);
+        safeLog(
+                userId, question, "NOT_FOUND", false, null, closestDistance, startTime, null,
+                quickReplyResult.matchType(),
+                quickReplyResult.score(),
+                quickReplyResult.matchedKeyword()
+        );
 
         return IctAskResponse.builder()
                 .answer(NOT_FOUND_MESSAGE)
@@ -573,7 +612,10 @@ safeLog(userId, question, "CACHE_HIT", true, hit.getSourceWriters(), null, start
             String.join(",", sourceWriters),
             closestDistance,
             startTime,
-            answerFound ? answer : null
+            answerFound ? answer : null,
+            quickReplyResult.matchType(),
+            quickReplyResult.score(),
+            quickReplyResult.matchedKeyword()
     );
 
 
