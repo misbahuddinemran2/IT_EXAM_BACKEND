@@ -32,7 +32,10 @@ public class IctQueryLogService {
             String matchedWriterNames,
             Double closestChunkDistance,
             long responseTimeMs,
-            String answerText
+            String answerText,
+            String quickReplyMatchType,
+            Double quickReplyMatchScore,
+            String quickReplyMatchedKeyword
     ) {
 
         IctQueryLog entry = IctQueryLog.builder()
@@ -44,6 +47,9 @@ public class IctQueryLogService {
                 .closestChunkDistance(closestChunkDistance)
                 .responseTimeMs((int) responseTimeMs)
                 .answerText(answerText)
+                .quickReplyMatchType(quickReplyMatchType)
+                .quickReplyMatchScore(quickReplyMatchScore)
+                .quickReplyMatchedKeyword(quickReplyMatchedKeyword)
                 .build();
 
         queryLogRepository.save(entry);
