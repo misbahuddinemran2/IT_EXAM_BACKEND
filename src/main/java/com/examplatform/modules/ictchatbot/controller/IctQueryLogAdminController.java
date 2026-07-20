@@ -70,6 +70,12 @@ public class IctQueryLogAdminController {
     public List<IctQueryLog> getConditionalZone() {
         return queryLogService.getConditionalZoneLogs();
     }
+// একটা নির্দিষ্ট প্রশ্নের সব raw log entries — summary card এ "বিস্তারিত" দেখানোর জন্য
+    @GetMapping("/raw-by-question")
+    public List<IctQueryLog> getRawByQuestion(@RequestParam String question) {
+        return queryLogService.getRawLogsByQuestion(question);
+    }
+    
 
     // একটা নির্দিষ্ট summary entry মুছে ফেলা
     @DeleteMapping("/summaries/{id}")
