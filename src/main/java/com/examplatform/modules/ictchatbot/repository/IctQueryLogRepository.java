@@ -33,6 +33,9 @@ public interface IctQueryLogRepository extends JpaRepository<IctQueryLog, java.u
         """, nativeQuery = true)
     List<Object[]> aggregateByQuestion();
 
+    // CONDITIONAL zone (matchType = 'CONDITIONAL') এন্ট্রিগুলো সাম্প্রতিক আগে
+    List<IctQueryLog> findByQuickReplyMatchTypeOrderByCreatedAtDesc(String quickReplyMatchType);
+
     @Transactional
     void deleteAllInBatch();
 }
