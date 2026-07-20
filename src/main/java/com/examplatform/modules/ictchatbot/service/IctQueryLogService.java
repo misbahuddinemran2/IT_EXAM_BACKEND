@@ -174,6 +174,10 @@ public List<IctQuerySummary> getLeastAsked() {
         return queryLogRepository.findByQuickReplyMatchTypeOrderByCreatedAtDesc("CONDITIONAL");
     }
 
+    // একটা নির্দিষ্ট প্রশ্নের সব individual raw log entries (summary কার্ড বিস্তারিত দেখার জন্য)
+    public List<IctQueryLog> getRawLogsByQuestion(String question) {
+        return queryLogRepository.findByQuestionOrderByCreatedAtDesc(question);
+    }
     /*
      * ===================================
      * SUMMARY DELETE (individual + bulk)
