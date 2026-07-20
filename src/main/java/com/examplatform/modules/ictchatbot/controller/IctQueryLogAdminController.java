@@ -55,6 +55,11 @@ public class IctQueryLogAdminController {
         return queryLogService.getTopByNotFound();
     }
 
+    @GetMapping("/least-asked")
+    public List<IctQuerySummary> getLeastAsked() {
+        return queryLogService.getLeastAsked();
+    }
+
     @GetMapping("/summaries")
     public List<IctQuerySummary> getAllSummaries() {
         return queryLogService.getAllSummaries();
