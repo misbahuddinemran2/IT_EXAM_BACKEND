@@ -1,6 +1,7 @@
 package com.examplatform.modules.ictchatbot.controller;
 
 import com.examplatform.modules.ictchatbot.dto.IctQueryLogStatsResponse;
+import com.examplatform.modules.ictchatbot.entity.IctQueryLog;
 import com.examplatform.modules.ictchatbot.entity.IctQuerySummary;
 import com.examplatform.modules.ictchatbot.service.IctQueryLogService;
 
@@ -57,6 +58,12 @@ public class IctQueryLogAdminController {
     @GetMapping("/summaries")
     public List<IctQuerySummary> getAllSummaries() {
         return queryLogService.getAllSummaries();
+    }
+
+    // CONDITIONAL zone raw log entries — Smart Quick Reply threshold tuning এর জন্য
+    @GetMapping("/conditional-zone")
+    public List<IctQueryLog> getConditionalZone() {
+        return queryLogService.getConditionalZoneLogs();
     }
 
     // একটা নির্দিষ্ট summary entry মুছে ফেলা
