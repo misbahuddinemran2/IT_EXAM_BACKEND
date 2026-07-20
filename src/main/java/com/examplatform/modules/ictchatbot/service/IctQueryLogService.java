@@ -166,6 +166,11 @@ public class IctQueryLogService {
         return querySummaryRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    // CONDITIONAL zone raw log entries (matchType tuning এর জন্য)
+    public List<IctQueryLog> getConditionalZoneLogs() {
+        return queryLogRepository.findByQuickReplyMatchTypeOrderByCreatedAtDesc("CONDITIONAL");
+    }
+
     /*
      * ===================================
      * SUMMARY DELETE (individual + bulk)
