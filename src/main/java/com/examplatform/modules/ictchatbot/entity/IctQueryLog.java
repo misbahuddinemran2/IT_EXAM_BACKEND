@@ -46,6 +46,15 @@ public class IctQueryLog {
     @Column(name = "answer_text", columnDefinition = "TEXT")
     private String answerText;
 
+    @Column(name = "quick_reply_match_type", length = 20)
+    private String quickReplyMatchType;
+
+    @Column(name = "quick_reply_match_score")
+    private Double quickReplyMatchScore;
+
+    @Column(name = "quick_reply_matched_keyword", columnDefinition = "TEXT")
+    private String quickReplyMatchedKeyword;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -53,4 +62,4 @@ public class IctQueryLog {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
-} 
+}
