@@ -239,31 +239,48 @@ public QuickReplyMatchResult match(
 
 
     // ধাপ ২: synonym expansion করে দ্বিতীয় পাস
-    String expandedQuestion = applySynonyms(normalizedQuestion);
+    
+// ধাপ ২: synonym expansion করে দ্বিতীয় পাস
+String expandedQuestion = applySynonyms(normalizedQuestion);
 
-    if (!expandedQuestion.equals(normalizedQuestion)) {
+if (!expandedQuestion.equals(normalizedQuestion)) {
 
-        QuickReplyMatchResult secondPass = tryMatch(expandedQuestion);
+    log.info(
+            "ICT synonym applied. Original: {}, Expanded: {}",
+            normalizedQuestion, expandedQuestion
+    );
 
-        if ("EXACT".equals(secondPass.matchType()) || "SMART".equals(secondPass.matchType())) {
+    QuickReplyMatchResult secondPass = tryMatch(expandedQuestion);
 
-            log.info(
-                    "ICT quick reply matched via synonym expansion. Original: {}, Expanded: {}",
-                    normalizedQuestion, expandedQuestion
-            );
+    if ("EXACT".equals(secondPass.matchType()) || "SMART".equals(secondPass.matchType())) {
 
-            return secondPass;
-        }
+        log.info(
+                "ICT quick reply matched via synonym expansion. Original: {}, Expanded: {}",
+                normalizedQuestion, expandedQuestion
+        );
 
-        // synonym pass এ প্রথম পাসের চেয়ে ভালো CONDITIONAL score পেলে সেটাই নেওয়া হবে
-        if ("CONDITIONAL".equals(secondPass.matchType())
-                && (firstPass.score() == null
-                    || (secondPass.score() != null && secondPass.score() > firstPass.score()))) {
-
-            return secondPass;
-        }
+        return secondPass;
     }
 
+    log.info(
+            "ICT synonym expanded but still no match. Expanded: {}, ResultType: {}, Score: {}",
+            expandedQuestion, secondPass.matchType(), secondPass.score()
+    );
+
+    // synonym pass এ প্রথম পাসের চেয়ে ভালো CONDITIONAL score পেলে সেটাই নেওয়া হবে
+    if ("CONDITIONAL".equals(secondPass.matchType())
+            && (firstPass.score() == null
+                || (secondPass.score() != null && secondPass.score() > firstPass.score()))) {
+
+        return secondPass;
+    }
+} else {
+
+    log.info(
+            "ICT synonym not applied (no matching word found). Question: {}",
+            normalizedQuestion
+    );
+}
 
     // কোনো পাসেই ভালো কিছু না পেলে প্রথম পাসের ফলাফলই ফেরত (NONE বা CONDITIONAL)
     return firstPass;
