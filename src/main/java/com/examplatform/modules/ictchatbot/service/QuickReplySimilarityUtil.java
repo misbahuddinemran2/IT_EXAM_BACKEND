@@ -145,6 +145,12 @@ public final class QuickReplySimilarityUtil {
      * common word / total unique word হিসাব করে।
      *
      * Return: 0.0 থেকে 1.0
+     *
+     * ⚠️ FIX: Set.of(...) duplicate element পেলে
+     * IllegalArgumentException ছোঁড়ে (যেমন একই
+     * শব্দ প্রশ্নে দুইবার থাকলে)। তাই এখন HashSet
+     * ব্যবহার করা হচ্ছে, যেটা duplicate নিজে থেকেই
+     * বাদ দিয়ে দেয়, exception ছোঁড়ে না।
      * ===================================
      */
     public static double jaccard(String s1, String s2) {
@@ -153,8 +159,13 @@ public final class QuickReplySimilarityUtil {
             return 0.0;
         }
 
-        var tokens1 = java.util.Set.of(s1.trim().split("\\s+"));
-        var tokens2 = java.util.Set.of(s2.trim().split("\\s+"));
+        var tokens1 = new java.util.HashSet<>(
+                java.util.Arrays.asList(s1.trim().split("\\s+"))
+        );
+
+        var tokens2 = new java.util.HashSet<>(
+                java.util.Arrays.asList(s2.trim().split("\\s+"))
+        );
 
         var union = new java.util.HashSet<>(tokens1);
         union.addAll(tokens2);
