@@ -667,7 +667,12 @@ private String applySynonyms(String normalizedQuestion) {
     return result.replaceAll("\\s+", " ").trim();
 }
 
+public String normalizeAndExpand(String question) {
 
+        String normalized = normalize(question);
+
+        return applySynonyms(normalized);
+    }
 /*
  * ===================================
  * ADMIN CRUD
