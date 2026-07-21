@@ -246,7 +246,24 @@ public IctAskResponse ask(
                 .fromCache(false)
                 .build();
     }
+String embeddingSourceText = question;
 
+    try {
+
+        String expanded =
+                quickReplyService.normalizeAndExpand(question);
+
+        if (expanded != null && !expanded.isBlank()) {
+            embeddingSourceText = expanded;
+        }
+
+    } catch (Exception e) {
+
+        log.warn(
+                "Synonym expansion for embedding failed. Using original question.",
+                e
+        );
+    }
 
     /*
      * 4️⃣ Generate question embedding
@@ -258,7 +275,7 @@ public IctAskResponse ask(
     try {
 
         questionEmbeddingArray =
-                embeddingService.generateEmbedding(question);
+                embeddingService.generateEmbedding(embeddingSourceText);
 
     } catch (Exception e) {
 
