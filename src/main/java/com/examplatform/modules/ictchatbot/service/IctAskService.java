@@ -374,6 +374,29 @@ String embeddingSourceText = question;
                 );
             }
 
+                 ===== নতুন অংশ শুরু =====
+    Double cacheHitDistance = null;
+
+    try {
+
+        List<Object[]> top1 =
+                cacheRepository.findTopClosestForDebug(
+                        questionEmbeddingStr,
+                        1
+                );
+
+        if (!top1.isEmpty()) {
+            cacheHitDistance = ((Number) top1.get(0)[1]).doubleValue();
+        }
+
+    } catch (Exception e) {
+
+        log.warn(
+                "Cache hit distance fetch failed",
+                e
+        );
+    }
+
 
             log.info(
                     "ICT answer served from cache"
