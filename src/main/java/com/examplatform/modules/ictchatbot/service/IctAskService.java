@@ -1,5 +1,4 @@
 package com.examplatform.modules.ictchatbot.service;
-
 import com.examplatform.modules.ictchatbot.dto.IctAskResponse;
 import com.examplatform.modules.ictchatbot.entity.IctAnswerCache;
 import com.examplatform.modules.ictchatbot.entity.IctBookChunk;
