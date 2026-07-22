@@ -374,7 +374,7 @@ String embeddingSourceText = question;
                 );
             }
 
-                 ===== নতুন অংশ শুরু =====
+                // ===== নতুন অংশ শুরু =====
     Double cacheHitDistance = null;
 
     try {
