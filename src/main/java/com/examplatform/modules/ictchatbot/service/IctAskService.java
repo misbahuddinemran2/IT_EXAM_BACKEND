@@ -57,7 +57,7 @@ private String model;
  */
 
 private static final double CACHE_DISTANCE_THRESHOLD =
-        0.05;
+        0.10;
 
 /*
  * VECTOR_DISTANCE_THRESHOLD:
@@ -299,7 +299,23 @@ String embeddingSourceText = question;
     /*
      * 5️⃣ CACHE CHECK
      */
+// DEBUG START — temporary, tuning শেষে মুছে ফেলবেন
+    try {
+        List<Object[]> debugTop5 =
+                cacheRepository.findTopClosestForDebug(questionEmbeddingStr, 5);
 
+        log.info("=== CACHE DEBUG for question: '{}' ===", question);
+
+        for (Object[] row : debugTop5) {
+            log.info("   -> '{}' | distance: {}", row[0], row[1]);
+        }
+
+    } catch (Exception e) {
+        log.warn("Cache debug query failed", e);
+    }
+    // DEBUG END
+
+       
     List<IctAnswerCache> cacheHits;
 
 
