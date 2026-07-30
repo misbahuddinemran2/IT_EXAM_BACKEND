@@ -10,6 +10,7 @@ import com.examplatform.modules.written.questionbank.mapper.WrittenQuestionBankM
 import com.examplatform.modules.written.questionbank.repository.WrittenQuestionBankRepository;
 import com.examplatform.modules.written.questionbank.request.AttachToExamRequest;
 import com.examplatform.modules.written.questionbank.request.CreateBankQuestionRequest;
+import com.examplatform.modules.written.questionbank.request.UpdateBankQuestionRequest;
 import com.examplatform.modules.written.questionbank.response.BankQuestionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,21 @@ public class WrittenQuestionBankService {
         return bankMapper.toResponse(saved);
     }
 
+    @Transactional
+    public BankQuestionResponse updateBankQuestion(String id, UpdateBankQuestionRequest req) {
+        WrittenQuestionBank bank = getBankOrThrow(id);
+        bankMapper.applyUpdate(bank, req);
+
+        // regenerateAiAnswer=true দিলে Gemini আবার কল হয়ে AI answer ওভাররাইট করবে;
+        // নাহলে request এ সরাসরি দেওয়া partXAiAnswer (যদি থাকে) সেটাই থাকবে (manual override)
+        if (req.isRegenerateAiAnswer()) {
+            generateAllAiAnswers(bank);
+        }
+
+        WrittenQuestionBank saved = bankRepository.save(bank);
+        return bankMapper.toResponse(saved);
+    }
+
     private void generateAllAiAnswers(WrittenQuestionBank q) {
         try {
             if (notBlank(q.getPartAQuestion()) && q.getPartAMaxMark() != null) {
@@ -61,7 +77,7 @@ public class WrittenQuestionBankService {
                         q.getStimulus(), q.getPartDQuestion(), q.getPartDMaxMark().intValue()));
             }
         } catch (Exception e) {
-            // AI ফেইল করলেও bank question সেভ হোক, পরে admin manually generate করতে পারবে
+            // AI ফেইল করলেও bank question সেভ হোক, পরে admin manually generate/edit করতে পারবে
         }
     }
 
