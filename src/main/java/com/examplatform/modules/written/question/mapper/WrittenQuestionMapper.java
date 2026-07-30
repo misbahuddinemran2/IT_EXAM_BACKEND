@@ -33,6 +33,9 @@ public class WrittenQuestionMapper {
                 .questionOrder(req.getQuestionOrder() != null ? req.getQuestionOrder() : 1)
                 .stimulus(req.getStimulus())
                 .stimulusBn(req.getStimulusBn())
+                .isBoardQuestion(req.isBoardQuestion())
+                .board(req.getBoard())
+                .examYear(req.getExamYear())
                 .partAQuestion(req.getPartAQuestion())
                 .partAModelAnswer(req.getPartAModelAnswer())
                 .partAMarkingScheme(req.getPartAMarkingScheme())
@@ -62,6 +65,10 @@ public class WrittenQuestionMapper {
         if (req.getQuestionOrder() != null) q.setQuestionOrder(req.getQuestionOrder());
         if (req.getStimulus() != null) q.setStimulus(req.getStimulus());
         if (req.getStimulusBn() != null) q.setStimulusBn(req.getStimulusBn());
+
+        if (req.getIsBoardQuestion() != null) q.setBoardQuestion(req.getIsBoardQuestion());
+        if (req.getBoard() != null) q.setBoard(req.getBoard());
+        if (req.getExamYear() != null) q.setExamYear(req.getExamYear());
 
         if (req.getPartAQuestion() != null) q.setPartAQuestion(req.getPartAQuestion());
         if (req.getPartAModelAnswer() != null) q.setPartAModelAnswer(req.getPartAModelAnswer());
@@ -97,6 +104,9 @@ public class WrittenQuestionMapper {
                 .questionOrder(q.getQuestionOrder())
                 .stimulus(q.getStimulus())
                 .stimulusBn(q.getStimulusBn())
+                .isBoardQuestion(q.isBoardQuestion())
+                .board(q.getBoard())
+                .examYear(q.getExamYear())
                 .partAQuestion(q.getPartAQuestion())
                 .partAModelAnswer(q.getPartAModelAnswer())
                 .partAAiAnswer(q.getPartAAiAnswer())
