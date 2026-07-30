@@ -27,6 +27,10 @@ public class QuestionAdminResponse {
     private String stimulus;
     private String stimulusBn;
 
+    private boolean isBoardQuestion;
+    private String board;
+    private Integer examYear;
+
     private String partAQuestion;
     private String partAModelAnswer;
     private String partAAiAnswer;
