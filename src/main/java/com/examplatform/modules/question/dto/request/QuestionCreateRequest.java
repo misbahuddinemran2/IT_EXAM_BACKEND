@@ -40,6 +40,10 @@ public class QuestionCreateRequest {
 
     private Integer yearAppeared;
 
+    private boolean isBoardQuestion;
+
+    private String board;
+
     @Valid
     @NotEmpty(message = "At least one option is required")
     private List<OptionRequest> options;
