@@ -9,6 +9,7 @@ import com.examplatform.modules.taxonomy.repository.TopicRepository;
 import com.examplatform.modules.written.question.entity.WrittenQuestion;
 import com.examplatform.modules.written.questionbank.entity.WrittenQuestionBank;
 import com.examplatform.modules.written.questionbank.request.CreateBankQuestionRequest;
+import com.examplatform.modules.written.questionbank.request.UpdateBankQuestionRequest;
 import com.examplatform.modules.written.questionbank.response.BankQuestionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -50,6 +51,53 @@ public class WrittenQuestionBankMapper {
                 .partDMarkingScheme(req.getPartDMarkingScheme())
                 .partDMaxMark(req.getPartDMaxMark())
                 .build();
+    }
+
+    /**
+     * Partial update — request এ যেই field null না, সেটাই update হবে।
+     * partXAiAnswer সরাসরি দিলে কোনো AI/Gemini call ছাড়াই manual override হবে।
+     */
+    public void applyUpdate(WrittenQuestionBank q, UpdateBankQuestionRequest req) {
+        if (req.getSubjectId() != null) q.setSubject(findSubject(req.getSubjectId()));
+        if (req.getChapterId() != null) q.setChapter(findChapter(req.getChapterId()));
+        if (req.getTopicId() != null) {
+            q.setTopic(req.getTopicId().isBlank() ? null : findTopic(req.getTopicId()));
+        }
+
+        if (req.getStimulus() != null) q.setStimulus(req.getStimulus());
+        if (req.getStimulusBn() != null) q.setStimulusBn(req.getStimulusBn());
+
+        if (req.getIsBoardQuestion() != null) q.setBoardQuestion(req.getIsBoardQuestion());
+        if (req.getBoard() != null) q.setBoard(req.getBoard());
+        if (req.getExamYear() != null) q.setExamYear(req.getExamYear());
+
+        // Part A
+        if (req.getPartAQuestion() != null) q.setPartAQuestion(req.getPartAQuestion());
+        if (req.getPartAModelAnswer() != null) q.setPartAModelAnswer(req.getPartAModelAnswer());
+        if (req.getPartAAiAnswer() != null) q.setPartAAiAnswer(req.getPartAAiAnswer());
+        if (req.getPartAMarkingScheme() != null) q.setPartAMarkingScheme(req.getPartAMarkingScheme());
+        if (req.getPartAMaxMark() != null) q.setPartAMaxMark(req.getPartAMaxMark());
+
+        // Part B
+        if (req.getPartBQuestion() != null) q.setPartBQuestion(req.getPartBQuestion());
+        if (req.getPartBModelAnswer() != null) q.setPartBModelAnswer(req.getPartBModelAnswer());
+        if (req.getPartBAiAnswer() != null) q.setPartBAiAnswer(req.getPartBAiAnswer());
+        if (req.getPartBMarkingScheme() != null) q.setPartBMarkingScheme(req.getPartBMarkingScheme());
+        if (req.getPartBMaxMark() != null) q.setPartBMaxMark(req.getPartBMaxMark());
+
+        // Part C
+        if (req.getPartCQuestion() != null) q.setPartCQuestion(req.getPartCQuestion());
+        if (req.getPartCModelAnswer() != null) q.setPartCModelAnswer(req.getPartCModelAnswer());
+        if (req.getPartCAiAnswer() != null) q.setPartCAiAnswer(req.getPartCAiAnswer());
+        if (req.getPartCMarkingScheme() != null) q.setPartCMarkingScheme(req.getPartCMarkingScheme());
+        if (req.getPartCMaxMark() != null) q.setPartCMaxMark(req.getPartCMaxMark());
+
+        // Part D
+        if (req.getPartDQuestion() != null) q.setPartDQuestion(req.getPartDQuestion());
+        if (req.getPartDModelAnswer() != null) q.setPartDModelAnswer(req.getPartDModelAnswer());
+        if (req.getPartDAiAnswer() != null) q.setPartDAiAnswer(req.getPartDAiAnswer());
+        if (req.getPartDMarkingScheme() != null) q.setPartDMarkingScheme(req.getPartDMarkingScheme());
+        if (req.getPartDMaxMark() != null) q.setPartDMaxMark(req.getPartDMaxMark());
     }
 
     public BankQuestionResponse toResponse(WrittenQuestionBank q) {
