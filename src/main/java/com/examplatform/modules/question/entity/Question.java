@@ -66,6 +66,13 @@ private String questionTextBn;
     @Column(name = "year_appeared")
     private Integer yearAppeared;
 
+    @Column(name = "is_board_question", nullable = false)
+    @Builder.Default
+    private boolean isBoardQuestion = false;
+
+    @Column(name = "board", length = 50)
+    private String board;
+
     @Column(name = "is_reusable", nullable = false)
     @Builder.Default
     private boolean isReusable = true;
