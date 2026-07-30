@@ -48,6 +48,16 @@ public class WrittenQuestion {
     @Column(name = "stimulus_bn", columnDefinition = "TEXT")
     private String stimulusBn;
 
+    @Column(name = "is_board_question", nullable = false)
+    @Builder.Default
+    private boolean isBoardQuestion = false;
+
+    @Column(name = "board", length = 50)
+    private String board;
+
+    @Column(name = "exam_year")
+    private Integer examYear;
+
     // Part A
     @Column(name = "part_a_question", columnDefinition = "TEXT", nullable = false)
     private String partAQuestion;
