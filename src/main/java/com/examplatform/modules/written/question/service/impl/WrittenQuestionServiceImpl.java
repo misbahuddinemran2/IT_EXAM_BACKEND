@@ -12,6 +12,7 @@ import com.examplatform.modules.written.question.request.UpdateQuestionRequest;
 import com.examplatform.modules.written.question.response.QuestionAdminResponse;
 import com.examplatform.modules.written.question.response.QuestionStudentResponse;
 import com.examplatform.modules.written.question.response.QuestionWithAnswerResponse;
+import com.examplatform.modules.written.question.service.GeminiAnswerGeneratorService;
 import com.examplatform.modules.written.question.service.WrittenQuestionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class WrittenQuestionServiceImpl implements WrittenQuestionService {
     private final WrittenQuestionRepository questionRepository;
     private final WrittenQuestionMapper questionMapper;
     private final WrittenExamRepository examRepository;
+    private final GeminiAnswerGeneratorService geminiService;
 
     @Override
     @Transactional
@@ -41,11 +43,44 @@ public class WrittenQuestionServiceImpl implements WrittenQuestionService {
                 .orElseThrow(() -> new NoSuchElementException("Exam not found: " + request.getExamId()));
 
         WrittenQuestion question = questionMapper.toEntity(request);
+
+        // request.autoGenerateAiAnswer=true হলে manual answer + AI answer একসাথেই save হবে
+        if (request.isAutoGenerateAiAnswer()) {
+            generateAllAiAnswers(question);
+        }
+
         WrittenQuestion saved = questionRepository.save(question);
 
         recalculateExamTotalMarks(exam.getId());
 
         return questionMapper.toAdminResponse(saved);
+    }
+
+    private void generateAllAiAnswers(WrittenQuestion q) {
+        try {
+            if (notBlank(q.getPartAQuestion()) && q.getPartAMaxMark() != null) {
+                q.setPartAAiAnswer(geminiService.generateReferenceAnswer(
+                        q.getStimulus(), q.getPartAQuestion(), q.getPartAMaxMark().intValue()));
+            }
+            if (notBlank(q.getPartBQuestion()) && q.getPartBMaxMark() != null) {
+                q.setPartBAiAnswer(geminiService.generateReferenceAnswer(
+                        q.getStimulus(), q.getPartBQuestion(), q.getPartBMaxMark().intValue()));
+            }
+            if (notBlank(q.getPartCQuestion()) && q.getPartCMaxMark() != null) {
+                q.setPartCAiAnswer(geminiService.generateReferenceAnswer(
+                        q.getStimulus(), q.getPartCQuestion(), q.getPartCMaxMark().intValue()));
+            }
+            if (notBlank(q.getPartDQuestion()) && q.getPartDMaxMark() != null) {
+                q.setPartDAiAnswer(geminiService.generateReferenceAnswer(
+                        q.getStimulus(), q.getPartDQuestion(), q.getPartDMaxMark().intValue()));
+            }
+        } catch (Exception e) {
+            // AI generate ফেইল করলেও question save হোক, পরে আলাদা endpoint দিয়ে retry করা যাবে
+        }
+    }
+
+    private boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     @Override
