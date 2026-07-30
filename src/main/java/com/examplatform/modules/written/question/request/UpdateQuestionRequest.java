@@ -17,6 +17,10 @@ public class UpdateQuestionRequest {
     private String stimulus;
     private String stimulusBn;
 
+    private Boolean isBoardQuestion;
+    private String board;
+    private Integer examYear;
+
     private String partAQuestion;
     private String partAModelAnswer;
     private String partAMarkingScheme;
