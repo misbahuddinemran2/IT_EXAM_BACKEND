@@ -13,11 +13,19 @@ public class CreateQuestionRequest {
 
     private String subjectId;   // required
     private String chapterId;   // required
-    private String topicId;     // required
+    private String topicId;     // optional
 
     private Integer questionOrder;
     private String stimulus;
     private String stimulusBn;
+
+    // ---- Board / Previous-year info ----
+    private boolean isBoardQuestion;
+    private String board;
+    private Integer examYear;
+
+    // ---- create করার সময়ই AI answer বানিয়ে নেবে কিনা ----
+    private boolean autoGenerateAiAnswer;
 
     private String partAQuestion;
     private String partAModelAnswer;
