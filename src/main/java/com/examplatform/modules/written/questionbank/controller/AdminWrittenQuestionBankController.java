@@ -6,6 +6,7 @@ import com.examplatform.modules.written.questionbank.response.BankQuestionRespon
 import com.examplatform.modules.written.questionbank.service.WrittenQuestionBankService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import com.examplatform.modules.written.questionbank.request.UpdateBankQuestionRequest;
 
 import java.util.List;
 
@@ -53,5 +54,9 @@ public class AdminWrittenQuestionBankController {
     @PostMapping("/attach-to-exam")
     public List<String> attachToExam(@RequestBody AttachToExamRequest request) {
         return bankService.attachToExam(request);
+    }
+    @PutMapping("/{id}")
+    public BankQuestionResponse update(@PathVariable String id, @RequestBody UpdateBankQuestionRequest request) {
+        return bankService.updateBankQuestion(id, request);
     }
 }
