@@ -24,6 +24,8 @@ public class QuestionResponse {
     private int estimatedTimeSec;
     private String sourceReference;
     private Integer yearAppeared;
+    private boolean isBoardQuestion;
+    private String board;
     private String status;
     private List<OptionResponse> options;
     private List<ConceptResponse> concepts;
