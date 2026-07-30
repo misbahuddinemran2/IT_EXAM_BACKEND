@@ -113,6 +113,8 @@ public class QuestionService {
                 .estimatedTimeSec(request.getEstimatedTimeSec())
                 .sourceReference(request.getSourceReference())
                 .yearAppeared(request.getYearAppeared())
+                .isBoardQuestion(request.isBoardQuestion())
+                .board(request.getBoard())
                 .contentHash(hash)
                 .createdBy("system")
                 .build();
@@ -319,6 +321,12 @@ public class QuestionService {
         question.setYearAppeared(
                 request.getYearAppeared());
 
+        question.setBoardQuestion(
+                request.isBoardQuestion());
+
+        question.setBoard(
+                request.getBoard());
+
         questionRepository.save(question);
 
         // update old options
@@ -463,6 +471,8 @@ public class QuestionService {
             .estimatedTimeSec(q.getEstimatedTimeSec())
             .sourceReference(q.getSourceReference())
             .yearAppeared(q.getYearAppeared())
+            .isBoardQuestion(q.isBoardQuestion())
+            .board(q.getBoard())
             .status(q.getStatus().name())
             .options(optionResponses)
             .concepts(conceptResponses)
