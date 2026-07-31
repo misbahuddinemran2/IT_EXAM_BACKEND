@@ -161,10 +161,12 @@ public class BulkUploadService {
                         .explanationB(getCellValue(row, 10))
                         .explanationC(getCellValue(row, 11))
                         .explanationD(getCellValue(row, 12))
-                        .sourceReference(getCellValue(row, 13))
+                        
+.sourceReference(getCellValue(row, 13))
                         .yearAppeared(getCellValue(row, 14))
+                        .isBoardQuestion(getCellValue(row, 15))
+                        .board(getCellValue(row, 16))
                         .build();
-
                 log.info("Parsed Row {}: q='{}' optA='{}' correct='{}'",
                         rowNum + 1,
                         uploadRow.getQuestionText(),
@@ -285,6 +287,21 @@ public class BulkUploadService {
                 "MCQ_SINGLE" : row.getQuestionType().trim());
         request.setSourceReference(row.getSourceReference());
         request.setYearAppeared(year);
+
+        // Board question fields
+        boolean isBoard = "TRUE".equalsIgnoreCase(
+                row.getIsBoardQuestion() == null ?
+                        "" : row.getIsBoardQuestion().trim())
+                || "YES".equalsIgnoreCase(
+                row.getIsBoardQuestion() == null ?
+                        "" : row.getIsBoardQuestion().trim())
+                || "1".equals(
+                row.getIsBoardQuestion() == null ?
+                        "" : row.getIsBoardQuestion().trim());
+        request.setBoardQuestion(isBoard);
+        request.setBoard(
+                isEmpty(row.getBoard()) ? null : row.getBoard().trim());
+
         request.setOptions(options);
 
         questionService.createQuestion(request);
