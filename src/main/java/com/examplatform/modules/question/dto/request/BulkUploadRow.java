@@ -24,6 +24,8 @@ public class BulkUploadRow {
     private String explanationD;
     private String sourceReference;
     private String yearAppeared;
+    private String isBoardQuestion;
+    private String board;
 
     @Builder.Default
     private boolean valid = true;
