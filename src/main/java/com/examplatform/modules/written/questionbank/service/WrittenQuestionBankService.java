@@ -135,6 +135,56 @@ public class WrittenQuestionBankService {
         return createdIds;
     }
 
+    /**
+     * একটা নির্দিষ্ট Part এর জন্য AI দিয়ে answer generate করে —
+     * কিন্তু সেভ করে না, শুধু preview হিসেবে ফেরত দেয়।
+     */
+    public String generatePartAnswer(String id, String part) {
+        WrittenQuestionBank q = getBankOrThrow(id);
+        String questionText;
+        BigDecimal maxMark;
+        switch (part) {
+            case "A" -> {
+                questionText = q.getPartAQuestion();
+                maxMark = q.getPartAMaxMark();
+            }
+            case "B" -> {
+                questionText = q.getPartBQuestion();
+                maxMark = q.getPartBMaxMark();
+            }
+            case "C" -> {
+                questionText = q.getPartCQuestion();
+                maxMark = q.getPartCMaxMark();
+            }
+            case "D" -> {
+                questionText = q.getPartDQuestion();
+                maxMark = q.getPartDMaxMark();
+            }
+            default -> throw new IllegalArgumentException("Invalid part: " + part);
+        }
+        if (questionText == null || questionText.isBlank() || maxMark == null) {
+            throw new IllegalArgumentException("এই Part এর প্রশ্ন বা মার্ক সেট করা নেই, আগে Save করুন");
+        }
+        return geminiService.generateReferenceAnswer(q.getStimulus(), questionText, maxMark.intValue());
+    }
+
+    /**
+     * Admin প্রিভিউ দেখে পছন্দ করলে এই answer টা নির্দিষ্ট Part এ সেভ করে।
+     */
+    @Transactional
+    public BankQuestionResponse saveAiAnswer(String id, String part, String aiAnswer) {
+        WrittenQuestionBank q = getBankOrThrow(id);
+        switch (part) {
+            case "A" -> q.setPartAAiAnswer(aiAnswer);
+            case "B" -> q.setPartBAiAnswer(aiAnswer);
+            case "C" -> q.setPartCAiAnswer(aiAnswer);
+            case "D" -> q.setPartDAiAnswer(aiAnswer);
+            default -> throw new IllegalArgumentException("Invalid part: " + part);
+        }
+        WrittenQuestionBank saved = bankRepository.save(q);
+        return bankMapper.toResponse(saved);
+    }
+
     private WrittenQuestionBank getBankOrThrow(String id) {
         return bankRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Bank question not found: " + id));
