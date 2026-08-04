@@ -53,4 +53,22 @@ public interface IctBookChunkRepository extends JpaRepository<IctBookChunk, Stri
         """, nativeQuery = true)
     Double findClosestDistance(@Param("embedding") String embedding,
                                 @Param("writerName") String writerName);
+
+    // ---------------------------------------------------------
+    // Evaluation module (modules/evaluation) এর জন্য যোগ করা হয়েছে।
+    // উপরের findSimilarChunksWithDistance() থেকে আলাদা রাখা হয়েছে কারণ
+    // c.* ব্যবহার করলে Object[]-এ id ঠিক কোন index-এ আসবে তা কলাম-অর্ডার
+    // নির্ভর ও অস্পষ্ট। এখানে শুধু id + distance — নির্দিষ্ট, নিরাপদ mapping।
+    // Existing method/logic কিছুই পরিবর্তন হয়নি, এটা একটা নতুন addition মাত্র।
+    // ---------------------------------------------------------
+    @Query(value = """
+        SELECT c.id AS chunk_id, (c.embedding <=> CAST(:embedding AS vector)) AS distance
+        FROM ict_book_chunk c
+        WHERE (:writerName IS NULL OR c.writer_name = :writerName)
+        ORDER BY distance
+        LIMIT :topK
+        """, nativeQuery = true)
+    List<Object[]> findSimilarChunkIdsWithDistance(@Param("embedding") String embedding,
+                                                     @Param("writerName") String writerName,
+                                                     @Param("topK") int topK);
 }
