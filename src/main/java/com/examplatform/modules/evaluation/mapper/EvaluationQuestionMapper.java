@@ -43,7 +43,7 @@ public class EvaluationQuestionMapper {
                 .subject(findSubject(req.getSubjectId()))
                 .chapter(findChapter(req.getChapterId()))
                 .topic(findTopic(req.getTopicId()))
-                .isActive(true)
+                .active(true)
                 .build();
     }
 
