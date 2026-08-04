@@ -12,7 +12,7 @@ public interface EvaluationQuestionRepository extends JpaRepository<EvaluationQu
 
     List<EvaluationQuestion> findByDatasetId(String datasetId);
 
-    List<EvaluationQuestion> findByDatasetIdAndIsActiveTrue(String datasetId);
+    List<EvaluationQuestion> findByDatasetIdAndActiveTrue(String datasetId);
 
     List<EvaluationQuestion> findByDatasetIdAndDifficulty(String datasetId, QuestionDifficulty difficulty);
 
@@ -20,7 +20,7 @@ public interface EvaluationQuestionRepository extends JpaRepository<EvaluationQu
 
     long countByDatasetId(String datasetId);
 
-    long countByDatasetIdAndIsActiveTrue(String datasetId);
+    long countByDatasetIdAndActiveTrue(String datasetId);
 
     @Transactional
     void deleteByDatasetId(String datasetId);
