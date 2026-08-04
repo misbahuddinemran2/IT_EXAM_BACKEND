@@ -65,9 +65,9 @@ public class EvaluationRunnerService {
         run.setStatus(EvaluationRunStatus.RUNNING);
         run.setStartedAt(LocalDateTime.now());
         runRepository.save(run);
-
-        List<EvaluationQuestion> questions =
-                questionRepository.findByDatasetIdAndIsActiveTrue(run.getDataset().getId());
+        
+                List<EvaluationQuestion> questions =
+                questionRepository.findByDatasetIdAndActiveTrue(run.getDataset().getId());
 
         int processed = 0;
         boolean anyFailure = false;
