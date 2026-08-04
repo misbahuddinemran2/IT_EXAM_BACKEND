@@ -24,7 +24,8 @@ public class MetricsReportService {
         EvaluationRun run = runRepository.findById(runId)
                 .orElseThrow(() -> new IllegalArgumentException("EvaluationRun not found: " + runId));
 
-        Object[] agg = resultRepository.findMetricAggregatesByRunId(runId);
+        List<Object[]> aggRows = resultRepository.findMetricAggregatesByRunId(runId);
+        Object[] agg = (aggRows != null && !aggRows.isEmpty()) ? aggRows.get(0) : new Object[11];
 
         long totalQuestions = run.getTotalQuestions() != null ? run.getTotalQuestions() : 0;
         long exactMatchCount = agg[9] != null ? ((Number) agg[9]).longValue() : 0;
