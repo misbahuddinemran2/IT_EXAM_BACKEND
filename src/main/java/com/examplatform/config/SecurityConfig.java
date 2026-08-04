@@ -36,6 +36,8 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/ict/ask", "/ict/rewrite").authenticated()
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/admin/**").authenticated()
                 .anyRequest().permitAll()
             )
             .addFilterBefore(
