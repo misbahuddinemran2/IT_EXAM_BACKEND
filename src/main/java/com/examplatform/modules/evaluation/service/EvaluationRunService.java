@@ -42,7 +42,7 @@ public class EvaluationRunService {
         EvaluationPrompt prompt = promptRepository.findById(req.getPromptId())
                 .orElseThrow(() -> new ResourceNotFoundException("EvaluationPrompt", req.getPromptId()));
 
-        long questionCount = questionRepository.countByDatasetIdAndIsActiveTrue(dataset.getId());
+        long questionCount = questionRepository.countByDatasetIdAndActiveTrue(dataset.getId());
         if (questionCount == 0) {
             throw new IllegalStateException("এই dataset-এ কোনো active প্রশ্ন নেই");
         }
