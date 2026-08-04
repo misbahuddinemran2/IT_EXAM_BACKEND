@@ -66,7 +66,8 @@ public class EvaluationRunnerService {
         run.setStartedAt(LocalDateTime.now());
         runRepository.save(run);
 
-        List<EvaluationQuestion> questions = questionRepository.findByDatasetIdAndIsActiveTrue(run.getDataset().getId());
+        List<EvaluationQuestion> questions =
+                questionRepository.findByDatasetIdAndIsActiveTrue(run.getDataset().getId());
 
         int processed = 0;
         boolean anyFailure = false;
@@ -104,14 +105,14 @@ public class EvaluationRunnerService {
             float[] embedding = embeddingService.generateEmbedding(question.getQuestionText());
             String embeddingStr = toVectorLiteral(embedding);
 
-            List<Object[]> rows = ictBookChunkRepository.findSimilarChunksWithDistance(
+            List<Object[]> rows = ictBookChunkRepository.findSimilarChunkIdsWithDistance(
                     embeddingStr, null, RETRIEVAL_TOP_K);
 
             for (Object[] row : rows) {
-                // row[0] = ict_book_chunk row (Object), row[last] = distance — native query
-                // থেকে exact index টাইপ ভিন্ন হতে পারে, তাই safe extraction করা হচ্ছে
-                Object distanceVal = row[row.length - 1];
-                if (distanceVal instanceof Number number) {
+                if (row[0] != null) {
+                    retrievedChunkIds.add(row[0].toString());
+                }
+                if (row[1] instanceof Number number) {
                     retrievedChunkDistances.add(number.doubleValue());
                 }
             }
