@@ -35,6 +35,9 @@ public interface EvaluationResultRepository extends JpaRepository<EvaluationResu
     // row order: avg_similarity, avg_token_f1, avg_citation_precision, avg_citation_recall,
     //            avg_retrieval_latency, avg_llm_latency, avg_response_time,
     //            avg_token_input, avg_token_output, exact_match_count, total_count
+    // নোট: single aggregate row হলেও Hibernate প্রতিটা row-কে নিজস্ব Object[]-এ wrap করে
+    // এবং পুরো রেজাল্ট List<Object[]> হিসেবে রিটার্ন করে — তাই raw Object[] না নিয়ে
+    // List<Object[]> নিয়ে প্রথম row বের করে আনতে হবে (নাহলে ArrayIndexOutOfBoundsException হয়)।
     @Query(value = """
         SELECT
             AVG(semantic_similarity_score),
@@ -51,5 +54,5 @@ public interface EvaluationResultRepository extends JpaRepository<EvaluationResu
         FROM evaluation_result
         WHERE run_id = :runId
         """, nativeQuery = true)
-    Object[] findMetricAggregatesByRunId(@Param("runId") String runId);
+    List<Object[]> findMetricAggregatesByRunId(@Param("runId") String runId);
 }
