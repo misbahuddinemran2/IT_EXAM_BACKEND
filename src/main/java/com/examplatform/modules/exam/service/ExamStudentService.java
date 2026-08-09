@@ -326,14 +326,15 @@ public class ExamStudentService {
     private ExamAttemptHistoryResponse buildAttemptHistoryResponse(
             ExamAttemptHistory history) {
 
-        // Exam name + exam_date + end_time fetch
+        // Exam name + exam_date + end_time + cycle_number fetch
         String examName = "";
         String examType = "";
         LocalDate examDate = null;
         LocalTime endTime = null;
+        int currentCycleNumber = 0;
         try {
             List<Map<String, Object>> result = jdbcTemplate.queryForList(
-                    "SELECT name, exam_type, exam_date, end_time FROM exams WHERE id = ?",
+                    "SELECT name, exam_type, exam_date, end_time, cycle_number FROM exams WHERE id = ?",
                     history.getExamId()
             );
             if (!result.isEmpty()) {
@@ -350,6 +351,10 @@ public class ExamStudentService {
                     endTime = (timeObj instanceof java.sql.Time)
                             ? ((java.sql.Time) timeObj).toLocalTime()
                             : LocalTime.parse(timeObj.toString());
+                }
+                Object cycleObj = result.get(0).get("cycle_number");
+                if (cycleObj != null) {
+                    currentCycleNumber = ((Number) cycleObj).intValue();
                 }
             }
         } catch (Exception e) {
@@ -403,12 +408,17 @@ public class ExamStudentService {
             log.warn("Could not fetch startedAt for session: {}", history.getSessionId());
         }
 
-        // Result শুধু examDate + endTime (admin-নির্ধারিত) এর পর publish হবে
+        // Result শুধু examDate + endTime (admin-নির্ধারিত) এর পর publish হবে —
+        // তবে ছাত্র যদি বর্তমান cycle-এর চেয়ে পুরনো কোনো cycle-এ attempt করে থাকে
+        // (মানে exam পরে republish হয়ে গেছে), তার result ইতিমধ্যে চূড়ান্ত, তাই এই
+        // ক্ষেত্রে নতুন cycle-এর window শেষ হওয়ার জন্য অপেক্ষা করানো হবে না।
+        boolean attemptedInOlderCycle = history.getAttemptNumber() < currentCycleNumber;
+
         boolean resultPublished = true;
-if (examDate != null && endTime != null) {
-    LocalDateTime windowEnd = LocalDateTime.of(examDate, endTime);
-    resultPublished = LocalDateTime.now(ZoneId.of("Asia/Dhaka")).isAfter(windowEnd);
-}
+        if (!attemptedInOlderCycle && examDate != null && endTime != null) {
+            LocalDateTime windowEnd = LocalDateTime.of(examDate, endTime);
+            resultPublished = LocalDateTime.now(ZoneId.of("Asia/Dhaka")).isAfter(windowEnd);
+        }
 
         return ExamAttemptHistoryResponse.builder()
                 .id(history.getId())
