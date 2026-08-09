@@ -394,15 +394,16 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
     // 6. FINISH
     // ============================================
     @Transactional
-    public void finishExam(String sessionId, String userId) {
+    public Exam finishExam(String sessionId, String userId) {
         LiveExamSession session = getOwnedSession(sessionId, userId);
-        if (session.getStatus() == LiveExamSession.Status.SUBMITTED
-                || session.getStatus() == LiveExamSession.Status.AUTO_SUBMITTED) {
-            return;
-        }
         Exam exam = examRepository.findById(session.getExamId())
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
+        if (session.getStatus() == LiveExamSession.Status.SUBMITTED
+                || session.getStatus() == LiveExamSession.Status.AUTO_SUBMITTED) {
+            return exam;
+        }
         gradeAndClose(session, exam, LiveExamSession.Status.SUBMITTED);
+        return exam;
     }
 
     // ============================================
@@ -491,9 +492,11 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
-        LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
+      LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
         if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
-            throw new RuntimeException("Result will be available after the exam window closes.");
+            String formattedTime = exam.getEndTime()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"));
+            throw new RuntimeException("Result will be available after " + formattedTime + ".");
         }
 
         LiveExamSession session = liveSessionRepository
@@ -856,7 +859,7 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
 
         long remaining = Math.max(0, ChronoUnit.SECONDS.between(LocalDateTime.now(BD_ZONE), session.getExpiresAt()));
 
-        return LiveExamStartResponse.builder()
+     return LiveExamStartResponse.builder()
                 .sessionId(session.getId())
                 .examId(exam.getId())
                 .examName(exam.getName())
@@ -865,7 +868,8 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .expiresAt(session.getExpiresAt())
                 .remainingSeconds(remaining)
             .negativeMarking(exam.getNegativeMarking())
+                .examDate(exam.getExamDate())
+                .endTime(exam.getEndTime())
                 .questions(questions)
                 .build();
-    }
 }
