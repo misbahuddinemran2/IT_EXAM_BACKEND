@@ -105,18 +105,23 @@ public class LiveExamController {
         }
     }
 
-    // POST /api/v1/live-exams/session/{sessionId}/finish
+ // POST /api/v1/live-exams/session/{sessionId}/finish
     @PostMapping("/session/{sessionId}/finish")
     public ResponseEntity<?> finish(@PathVariable String sessionId, @RequestHeader("X-User-Id") String userId) {
         try {
-            liveExamService.finishExam(sessionId, userId);
-            return ResponseEntity.ok(Map.of("success", true, "message", "Exam submitted. Result will be available after 11:59 PM."));
+            var exam = liveExamService.finishExam(sessionId, userId);
+            String formattedTime = exam.getEndTime()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"));
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Exam submitted. Result will be available after " + formattedTime + ".",
+                    "resultEndTime", exam.getEndTime().toString()
+            ));
         } catch (Exception ex) {
             log.error("Error finishing exam session {}", sessionId, ex);
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
         }
     }
-
     // GET /api/v1/live-exams/{examId}/result  — time-gated
     @GetMapping("/{examId}/result")
     public ResponseEntity<?> getResult(@PathVariable String examId, @RequestHeader("X-User-Id") String userId) {
