@@ -873,3 +873,4 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .questions(questions)
                 .build();
 }
+}
