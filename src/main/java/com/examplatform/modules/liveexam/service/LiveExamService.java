@@ -484,6 +484,7 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 correctCount, wrongCount, skipCount, timeTakenSeconds);
     }
 
+
     // ============================================
     // 8. RESULT
     // ============================================
@@ -492,16 +493,24 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
-      LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
-        if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
-            String formattedTime = exam.getEndTime()
-                    .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"));
-            throw new RuntimeException("Result will be available after " + formattedTime + ".");
-        }
-
+        // ইউজারের সবচেয়ে সাম্প্রতিক attempt খুঁজে বের করা (cycle নির্বিশেষে) —
+        // যাতে exam পরে republish হয়ে গেলেও পুরনো attempt-এর result miss না হয়ে যায়
         LiveExamSession session = liveSessionRepository
-                .findByExamIdAndUserIdAndCycleNumber(examId, userId, exam.getCycleNumber())
+                .findTopByExamIdAndUserIdOrderByCreatedAtDesc(examId, userId)
                 .orElseThrow(() -> new RuntimeException("No attempt found for this exam."));
+
+        // ছাত্র যদি বর্তমান cycle-এর আগের কোনো cycle-এ attempt করে থাকে, তার result
+        // ইতিমধ্যে চূড়ান্ত — নতুন cycle-এর window শেষ হওয়ার জন্য অপেক্ষা করানো ঠিক না।
+        boolean attemptedInOlderCycle = session.getCycleNumber() < exam.getCycleNumber();
+
+        if (!attemptedInOlderCycle) {
+            LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
+            if (LocalDateTime.now(BD_ZONE).isBefore(windowEnd)) {
+                String formattedTime = exam.getEndTime()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"));
+                throw new RuntimeException("Result will be available after " + formattedTime + ".");
+            }
+        }
 
         if (session.getStatus() != LiveExamSession.Status.SUBMITTED
                 && session.getStatus() != LiveExamSession.Status.AUTO_SUBMITTED) {
