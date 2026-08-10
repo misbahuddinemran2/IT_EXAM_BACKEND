@@ -5,13 +5,14 @@ import com.examplatform.modules.practical.service.PracticalAdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/admin/practical")
+@RequestMapping("admin/practical")
 @RequiredArgsConstructor
 public class PracticalAdminController {
 
@@ -30,11 +31,13 @@ public class PracticalAdminController {
 
     @PostMapping("/experiments")
     public ResponseEntity<?> createExperiment(@RequestBody ExperimentAdminRequest req,
-                                               @RequestHeader("X-User-Id") String adminId) {
+                                               Authentication authentication) {
         try {
+            String adminId = authentication != null ? authentication.getName() : "system";
             var experiment = practicalAdminService.createExperiment(req, adminId);
             return ResponseEntity.ok(Map.of("success", true, "data", experiment));
         } catch (Exception ex) {
+            log.error("Error creating practical experiment", ex);
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
         }
     }
