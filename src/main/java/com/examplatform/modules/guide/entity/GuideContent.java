@@ -23,8 +23,8 @@ public class GuideContent extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(name = "body_html", columnDefinition = "LONGTEXT")
-    private String bodyHtml;
+   @Column(name = "body_html", columnDefinition = "TEXT")
+private String bodyHtml;
 
     @Column(name = "pdf_url", columnDefinition = "TEXT")
     private String pdfUrl;
