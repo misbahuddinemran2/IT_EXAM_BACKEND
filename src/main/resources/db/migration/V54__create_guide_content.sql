@@ -2,13 +2,13 @@ CREATE TABLE IF NOT EXISTS guide_content (
     id            VARCHAR(36) NOT NULL PRIMARY KEY,
     topic_id      VARCHAR(36) NOT NULL,
     title         VARCHAR(255) NOT NULL,
-    body_html     LONGTEXT,
+    body_html     TEXT,
     pdf_url       TEXT,
     status        VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     sort_order    INT NOT NULL DEFAULT 0,
-    published_at  DATETIME NULL,
-    created_at    DATETIME NOT NULL,
-    updated_at    DATETIME NOT NULL,
+    published_at  TIMESTAMP NULL,
+    created_at    TIMESTAMP NOT NULL,
+    updated_at    TIMESTAMP NOT NULL,
 
     CONSTRAINT fk_guide_content_topic
         FOREIGN KEY (topic_id) REFERENCES topics(id)
