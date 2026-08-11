@@ -12,4 +12,9 @@ public interface WrittenQuestionRepository extends JpaRepository<WrittenQuestion
     long countByExamId(String examId);
 
     void deleteByExamId(String examId);
+
+    // Added for Guide module (v1) — topic-wise practice content
+    List<WrittenQuestion> findByTopicId(String topicId);
+
+    List<WrittenQuestion> findByTopicIdAndIsBoardQuestionTrue(String topicId);
 }
