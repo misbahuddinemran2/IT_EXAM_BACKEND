@@ -30,12 +30,13 @@ public class GuideStudentController {
                 "data", guideContentStudentService.getMcqForTopic(topicId)));
     }
 
-    // Practice Options screen — Board Questions
+    // Practice Options screen — Board Questions (CQ)
     @GetMapping("/topics/{topicId}/board")
     public ResponseEntity<?> getBoardQuestions(@PathVariable String topicId) {
         return ResponseEntity.ok(Map.of("success", true,
                 "data", guideContentStudentService.getBoardQuestionsForTopic(topicId)));
     }
+
     // Practice Options screen — Previous Year MCQ (board only)
     @GetMapping("/topics/{topicId}/mcq-board")
     public ResponseEntity<?> getMcqBoard(@PathVariable String topicId) {
