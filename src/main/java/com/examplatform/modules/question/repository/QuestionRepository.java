@@ -26,6 +26,7 @@ public interface QuestionRepository
             @Param("difficulty") Integer difficulty,
             Pageable pageable);
 
+    List<Question> findByTopicIdAndStatusAndIsBoardQuestionTrue(String topicId, Question.QuestionStatus status);
     Optional<Question> findByContentHash(String contentHash);
 
     boolean existsByContentHash(String contentHash);
