@@ -52,6 +52,13 @@ public class GuideContentStudentService {
     }
 
     /**
+     * Practice Options screen — Previous Year MCQ (board only) for the topic.
+     */
+    public List<Question> getBoardMcqForTopic(String topicId) {
+        return questionRepository.findByTopicIdAndStatusAndIsBoardQuestionTrue(
+                topicId, Question.QuestionStatus.APPROVED);
+    }
+    /**
      * Practice Options screen — Board question list, delegates to Written module.
      */
     public List<WrittenQuestion> getBoardQuestionsForTopic(String topicId) {
