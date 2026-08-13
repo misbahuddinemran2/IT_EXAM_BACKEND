@@ -1,19 +1,19 @@
 package com.examplatform.modules.guide.service;
 
 import com.examplatform.common.exception.ResourceNotFoundException;
+import com.examplatform.modules.guide.dto.GuidePracticeCqResponse;
+import com.examplatform.modules.guide.dto.GuidePracticeMcqOptionResponse;
+import com.examplatform.modules.guide.dto.GuidePracticeMcqResponse;
 import com.examplatform.modules.guide.entity.GuideContent;
+import com.examplatform.modules.guide.entity.GuidePracticeCq;
+import com.examplatform.modules.guide.entity.GuidePracticeMcq;
+import com.examplatform.modules.guide.entity.GuidePracticeMcqOption;
 import com.examplatform.modules.guide.repository.GuideContentRepository;
-import com.examplatform.modules.question.dto.response.OptionResponse;
-import com.examplatform.modules.question.dto.response.QuestionResponse;
-import com.examplatform.modules.question.entity.Option;
-import com.examplatform.modules.question.entity.Question;
-import com.examplatform.modules.question.repository.OptionRepository;
-import com.examplatform.modules.question.repository.QuestionRepository;
-import com.examplatform.modules.written.question.entity.WrittenQuestion;
-import com.examplatform.modules.written.question.repository.WrittenQuestionRepository;
+import com.examplatform.modules.guide.repository.GuidePracticeCqRepository;
+import com.examplatform.modules.guide.repository.GuidePracticeMcqOptionRepository;
+import com.examplatform.modules.guide.repository.GuidePracticeMcqRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,71 +25,79 @@ import java.util.List;
 public class GuideContentStudentService {
 
     private final GuideContentRepository guideContentRepository;
-    private final QuestionRepository questionRepository;
-    private final OptionRepository optionRepository;
-    private final WrittenQuestionRepository writtenQuestionRepository;
+    private final GuidePracticeMcqRepository guidePracticeMcqRepository;
+    private final GuidePracticeMcqOptionRepository guidePracticeMcqOptionRepository;
+    private final GuidePracticeCqRepository guidePracticeCqRepository;
 
     /**
      * Fetch published guide content for a topic. Read screen entry point.
      */
     @Transactional
     public GuideContent getPublishedContent(String topicId) {
-        GuideContent content = guideContentRepository
+        return guideContentRepository
                 .findByTopicIdAndStatus(topicId, GuideContent.GuideStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No published guide content for topic: " + topicId));
-        return content;
     }
 
     /**
-     * Practice Options screen — MCQ list, delegates to existing Question module.
-     * Includes options (with isCorrect) since this is untimed practice, not
-     * a graded exam session.
+     * Practice Options screen — MCQ list for the topic.
+     * Sourced entirely from guide_practice_mcq — fully isolated from the
+     * Exam module's question bank so guide practice never leaks
+     * upcoming/unreleased exam questions.
      */
     @Transactional
-    public List<QuestionResponse> getMcqForTopic(String topicId) {
-        List<Question> questions = questionRepository.findWithFilters(
-                Question.QuestionStatus.APPROVED,
-                null,
-                null,
-                topicId,
-                null,
-                PageRequest.of(0, 50)
-        ).getContent();
-        return questions.stream().map(this::toQuestionResponse).toList();
+    public List<GuidePracticeMcqResponse> getMcqForTopic(String topicId) {
+        List<GuidePracticeMcq> list = guidePracticeMcqRepository.findByTopicIdOrderBySortOrderAsc(topicId);
+        return list.stream().map(this::toMcqResponse).toList();
     }
 
     /**
      * Practice Options screen — Previous Year MCQ (board only) for the topic.
      */
     @Transactional
-    public List<QuestionResponse> getBoardMcqForTopic(String topicId) {
-        List<Question> questions = questionRepository.findByTopicIdAndStatusAndIsBoardQuestionTrue(
-                topicId, Question.QuestionStatus.APPROVED);
-        return questions.stream().map(this::toQuestionResponse).toList();
-    }
-
-    /**
-     * Practice Options screen — Board question list, delegates to Written module.
-     */
-    public List<WrittenQuestion> getBoardQuestionsForTopic(String topicId) {
-        return writtenQuestionRepository.findByTopicIdAndIsBoardQuestionTrue(topicId);
+    public List<GuidePracticeMcqResponse> getBoardMcqForTopic(String topicId) {
+        List<GuidePracticeMcq> list = guidePracticeMcqRepository
+                .findByTopicIdAndIsBoardQuestionTrueOrderBySortOrderAsc(topicId);
+        return list.stream().map(this::toMcqResponse).toList();
     }
 
     /**
      * Practice Options screen — all CQ (board + non-board) for the topic.
+     * Sourced entirely from guide_practice_cq — fully isolated from the
+     * Written Exam module's question bank.
      */
-    public List<WrittenQuestion> getCqForTopic(String topicId) {
-        return writtenQuestionRepository.findByTopicId(topicId);
+    @Transactional
+    public List<GuidePracticeCqResponse> getCqForTopic(String topicId) {
+        List<GuidePracticeCq> list = guidePracticeCqRepository.findByTopicIdOrderBySortOrderAsc(topicId);
+        return list.stream().map(this::toCqResponse).toList();
     }
 
-    // ---- lightweight mapper: Question + Options -> QuestionResponse ----
-    // (mirrors QuestionService#toResponse but skips concepts/tags/examTypes,
-    // which the practice card UI doesn't need)
-    private QuestionResponse toQuestionResponse(Question q) {
-        List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(q.getId());
-        List<OptionResponse> optionResponses = options.stream()
-                .map(o -> OptionResponse.builder()
+    /**
+     * Practice Options screen — Previous Year CQ (board only) for the topic.
+     */
+    @Transactional
+    public List<GuidePracticeCqResponse> getBoardQuestionsForTopic(String topicId) {
+        List<GuidePracticeCq> list = guidePracticeCqRepository
+                .findByTopicIdAndIsBoardQuestionTrueOrderBySortOrderAsc(topicId);
+        return list.stream().map(this::toCqResponse).toList();
+    }
+
+    // ---- mappers: entity -> DTO (never expose entities/Topic/Chapter/Subject directly) ----
+
+    private GuidePracticeMcqResponse toMcqResponse(GuidePracticeMcq mcq) {
+        List<GuidePracticeMcqOption> options =
+                guidePracticeMcqOptionRepository.findAllByMcqIdOrderByOrderIndexAsc(mcq.getId());
+        return GuidePracticeMcqResponse.builder()
+                .id(mcq.getId())
+                .topicId(mcq.getTopic().getId())
+                .questionText(mcq.getQuestionText())
+                .questionTextBn(mcq.getQuestionTextBn())
+                .isBoardQuestion(mcq.isBoardQuestion())
+                .board(mcq.getBoard())
+                .yearAppeared(mcq.getYearAppeared())
+                .sortOrder(mcq.getSortOrder())
+                .options(options.stream().map(o -> GuidePracticeMcqOptionResponse.builder()
                         .id(o.getId())
                         .optionKey(o.getOptionKey())
                         .optionText(o.getOptionText())
@@ -97,31 +105,37 @@ public class GuideContentStudentService {
                         .isCorrect(o.isCorrect())
                         .explanation(o.getExplanation())
                         .orderIndex(o.getOrderIndex())
-                        .build())
-                .toList();
+                        .build()).toList())
+                .build();
+    }
 
-        return QuestionResponse.builder()
-                .id(q.getId())
-                .questionText(q.getQuestionText())
-                .questionTextBn(q.getQuestionTextBn())
-                .questionType(q.getQuestionType().name())
-                .language(q.getLanguage().name())
-                .subjectId(q.getSubject().getId())
-                .subjectName(q.getSubject().getName())
-                .chapterId(q.getChapter().getId())
-                .chapterName(q.getChapter().getName())
-                .topicId(q.getTopic().getId())
-                .topicName(q.getTopic().getName())
-                .difficultyLevel(q.getDifficultyLevel())
-                .cognitiveLevel(q.getCognitiveLevel().name())
-                .estimatedTimeSec(q.getEstimatedTimeSec())
-                .sourceReference(q.getSourceReference())
-                .yearAppeared(q.getYearAppeared())
-                .isBoardQuestion(q.isBoardQuestion())
-                .board(q.getBoard())
-                .status(q.getStatus().name())
-                .options(optionResponses)
-                .createdAt(q.getCreatedAt().toString())
+    private GuidePracticeCqResponse toCqResponse(GuidePracticeCq cq) {
+        return GuidePracticeCqResponse.builder()
+                .id(cq.getId())
+                .topicId(cq.getTopic().getId())
+                .stimulus(cq.getStimulus())
+                .stimulusBn(cq.getStimulusBn())
+                .isBoardQuestion(cq.isBoardQuestion())
+                .board(cq.getBoard())
+                .examYear(cq.getExamYear())
+                .partAQuestion(cq.getPartAQuestion())
+                .partAModelAnswer(cq.getPartAModelAnswer())
+                .partAMarkingScheme(cq.getPartAMarkingScheme())
+                .partAMaxMark(cq.getPartAMaxMark())
+                .partBQuestion(cq.getPartBQuestion())
+                .partBModelAnswer(cq.getPartBModelAnswer())
+                .partBMarkingScheme(cq.getPartBMarkingScheme())
+                .partBMaxMark(cq.getPartBMaxMark())
+                .partCQuestion(cq.getPartCQuestion())
+                .partCModelAnswer(cq.getPartCModelAnswer())
+                .partCMarkingScheme(cq.getPartCMarkingScheme())
+                .partCMaxMark(cq.getPartCMaxMark())
+                .partDQuestion(cq.getPartDQuestion())
+                .partDModelAnswer(cq.getPartDModelAnswer())
+                .partDMarkingScheme(cq.getPartDMarkingScheme())
+                .partDMaxMark(cq.getPartDMaxMark())
+                .totalMaxMark(cq.getTotalMaxMark())
+                .sortOrder(cq.getSortOrder())
                 .build();
     }
 }
