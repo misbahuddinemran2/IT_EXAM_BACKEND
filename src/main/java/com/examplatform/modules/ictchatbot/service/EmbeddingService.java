@@ -3,11 +3,13 @@ package com.examplatform.modules.ictchatbot.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmbeddingService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -56,11 +59,38 @@ public class EmbeddingService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(requestBody.toString(), headers);
 
+        int maxRetries = 5;
+        long baseDelayMs = 2000L; // 2s, 4s, 8s, 16s, 32s ... exponential backoff
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                String response = restTemplate.postForObject(url, request, String.class);
+                return extractEmbedding(response);
+            } catch (HttpClientErrorException.TooManyRequests e) {
+                if (attempt == maxRetries) {
+                    throw new RuntimeException(
+                            "Gemini embedding call failed after " + maxRetries + " retries (429 TPM/RPM limit): "
+                                    + e.getMessage(), e);
+                }
+                long delay = baseDelayMs * (1L << attempt); // exponential backoff
+                log.warn("Gemini 429 (rate limit) পেয়েছি, attempt={}/{}, {}ms পরে retry করছি",
+                        attempt + 1, maxRetries, delay);
+                sleep(delay);
+            } catch (Exception e) {
+                throw new RuntimeException("Gemini embedding call failed: " + e.getMessage(), e);
+            }
+        }
+
+        // এখানে কখনো পৌঁছানো উচিত না, কিন্তু compiler-এর জন্য
+        throw new RuntimeException("Gemini embedding call failed: retries exhausted");
+    }
+
+    private void sleep(long ms) {
         try {
-            String response = restTemplate.postForObject(url, request, String.class);
-            return extractEmbedding(response);
-        } catch (Exception e) {
-            throw new RuntimeException("Gemini embedding call failed: " + e.getMessage(), e);
+            Thread.sleep(ms);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Embedding retry delay interrupted", ie);
         }
     }
 
