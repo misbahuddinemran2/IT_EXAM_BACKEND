@@ -1,4 +1,3 @@
-
 package com.examplatform.modules.ictchatbot.service;
 
 import com.examplatform.modules.ictchatbot.entity.IctBookChunk;
@@ -8,6 +7,7 @@ import com.examplatform.modules.ictchatbot.repository.IctBookChunkRepository;
 import com.examplatform.modules.ictchatbot.repository.IctOcrUploadRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +15,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class IctVectorizeService {
 
     private final IctOcrUploadRepository uploadRepository;
@@ -46,7 +47,7 @@ public class IctVectorizeService {
         // 2. প্রতিটা chunk-এর embedding বানাও + সেভ করো
         int savedCount = 0;
         for (String chunkText : textChunks) {
-            float[] embeddingArray = embeddingService.generateEmbedding(chunkText);
+            float[] embeddingArray = embeddingService.generateEmbedding(chunkText, EmbeddingService.TASK_TYPE_DOCUMENT);
 
             IctBookChunk chunk = IctBookChunk.builder()
                     .sourceUploadId(upload.getId())
@@ -67,6 +68,48 @@ public class IctVectorizeService {
         uploadRepository.save(upload);
 
         return savedCount;
+    }
+
+    /*
+     * ===================================
+     * ONE-TIME MIGRATION: RE-EMBED ALL EXISTING CHUNKS
+     *
+     * task_type (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY) যোগ করার পর
+     * আগে vectorize হওয়া chunk গুলোর embedding পুরনো (task_type ছাড়া)
+     * পদ্ধতিতে তৈরি হয়ে আছে। এই মেথড শুধু embedding রিফ্রেশ করে,
+     * content/chunking কিছুই পরিবর্তন করে না।
+     *
+     * কাজ শেষ হলে এই মেথড এবং এটাকে কল করা admin endpoint
+     * নিরাপদে মুছে ফেলা যাবে।
+     * ===================================
+     */
+
+    @Transactional
+    public int reEmbedAllChunks() {
+        List<IctBookChunk> allChunks = chunkRepository.findAll();
+
+        int updated = 0;
+
+        for (IctBookChunk chunk : allChunks) {
+            try {
+                float[] embeddingArray =
+                        embeddingService.generateEmbedding(
+                                chunk.getContent(),
+                                EmbeddingService.TASK_TYPE_DOCUMENT
+                        );
+
+                chunk.setEmbedding(floatArrayToVectorString(embeddingArray));
+                chunkRepository.save(chunk);
+                updated++;
+
+            } catch (Exception e) {
+                log.error("Re-embed failed for chunk id={}", chunk.getId(), e);
+            }
+        }
+
+        log.info("Re-embed complete. {} / {} chunks updated.", updated, allChunks.size());
+
+        return updated;
     }
 
     private String floatArrayToVectorString(float[] arr) {
