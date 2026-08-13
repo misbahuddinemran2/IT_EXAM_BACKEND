@@ -23,36 +23,45 @@ public class EmbeddingService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    // এমবেডিং মডেল টেক্সট জেনারেশন মডেল থেকে আলাদা — এটা ৭৬৮-dimension ভেক্টর দেয়
     private static final String EMBEDDING_MODEL = "gemini-embedding-001";
 
+    // Task type constants — কল করার সময় এগুলো ব্যবহার করবেন
+    public static final String TASK_TYPE_DOCUMENT = "RETRIEVAL_DOCUMENT";
+    public static final String TASK_TYPE_QUERY = "RETRIEVAL_QUERY";
+
+    // পুরনো কল যদি কোথাও থেকে যায়, সেগুলো ভেঙে না গিয়ে RETRIEVAL_QUERY ব্যবহার করবে
     public float[] generateEmbedding(String text) {
-    String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-            + EMBEDDING_MODEL + ":embedContent?key=" + apiKey;
-
-    var contentNode = objectMapper.createObjectNode();
-    var partsArray = objectMapper.createArrayNode();
-    var textPart = objectMapper.createObjectNode();
-    textPart.put("text", text);
-    partsArray.add(textPart);
-    contentNode.set("parts", partsArray);
-
-    var requestBody = objectMapper.createObjectNode();
-    requestBody.put("model", "models/" + EMBEDDING_MODEL);
-    requestBody.set("content", contentNode);
-    requestBody.put("outputDimensionality", 768);
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    HttpEntity<String> request = new HttpEntity<>(requestBody.toString(), headers);
-
-    try {
-        String response = restTemplate.postForObject(url, request, String.class);
-        return extractEmbedding(response);
-    } catch (Exception e) {
-        throw new RuntimeException("Gemini embedding call failed: " + e.getMessage(), e);
+        return generateEmbedding(text, TASK_TYPE_QUERY);
     }
-}
+
+    public float[] generateEmbedding(String text, String taskType) {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
+                + EMBEDDING_MODEL + ":embedContent?key=" + apiKey;
+
+        var contentNode = objectMapper.createObjectNode();
+        var partsArray = objectMapper.createArrayNode();
+        var textPart = objectMapper.createObjectNode();
+        textPart.put("text", text);
+        partsArray.add(textPart);
+        contentNode.set("parts", partsArray);
+
+        var requestBody = objectMapper.createObjectNode();
+        requestBody.put("model", "models/" + EMBEDDING_MODEL);
+        requestBody.set("content", contentNode);
+        requestBody.put("outputDimensionality", 768);
+        requestBody.put("taskType", taskType);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> request = new HttpEntity<>(requestBody.toString(), headers);
+
+        try {
+            String response = restTemplate.postForObject(url, request, String.class);
+            return extractEmbedding(response);
+        } catch (Exception e) {
+            throw new RuntimeException("Gemini embedding call failed: " + e.getMessage(), e);
+        }
+    }
 
     private float[] extractEmbedding(String responseJson) throws Exception {
         JsonNode root = objectMapper.readTree(responseJson);
