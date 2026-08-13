@@ -94,6 +94,8 @@ public class EmbeddingService {
         }
     }
 
+    private static final int EXPECTED_DIMENSION = 768;
+
     private float[] extractEmbedding(String responseJson) throws Exception {
         JsonNode root = objectMapper.readTree(responseJson);
         JsonNode valuesNode = root.path("embedding").path("values");
@@ -111,6 +113,29 @@ public class EmbeddingService {
         for (int i = 0; i < values.size(); i++) {
             result[i] = values.get(i);
         }
+
+        // ===================================
+        // DEFENSIVE VALIDATION
+        // এই check না থাকলে malformed vector (NaN/Infinity/ভুল dimension)
+        // চুপচাপ DB-তে চলে যেতে পারে এবং pgvector query silently 0 rows
+        // রিটার্ন করতে পারে (exception ছাড়াই) — যেটা খুঁজে বের করা কঠিন।
+        // ===================================
+        if (result.length != EXPECTED_DIMENSION) {
+            log.error("Embedding dimension mismatch! Expected={}, Got={}. ResponseSnippet={}",
+                    EXPECTED_DIMENSION, result.length,
+                    responseJson.length() > 300 ? responseJson.substring(0, 300) : responseJson);
+            throw new IllegalStateException(
+                    "Embedding dimension mismatch: expected " + EXPECTED_DIMENSION + " but got " + result.length);
+        }
+
+        for (int i = 0; i < result.length; i++) {
+            if (Float.isNaN(result[i]) || Float.isInfinite(result[i])) {
+                log.error("Embedding contains invalid value (NaN/Infinite) at index={}", i);
+                throw new IllegalStateException(
+                        "Embedding contains NaN/Infinite value at index " + i + " — cannot safely store/query this vector");
+            }
+        }
+
         return result;
     }
 }
