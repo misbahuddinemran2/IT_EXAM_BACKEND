@@ -9,7 +9,9 @@ import java.util.List;
 public class ChunkingService {
 
     private static final int MIN_WORDS = 50;   // এর কম হলে পরের প্যারাগ্রাফের সাথে merge
-    private static final int MAX_WORDS = 500;  // এর বেশি হলে ভেঙে দুই ভাগ করা হবে
+    // বাংলা টেক্সটে প্রতি শব্দে গড়ে ২-৩ টোকেন লাগে, তাই ৩০K TPM লিমিটের
+    // নিরাপদ মার্জিন রাখতে MAX_WORDS কমিয়ে ৩০০ করা হয়েছে (আগে ৫০০ ছিল)
+    private static final int MAX_WORDS = 300;  // এর বেশি হলে ভেঙে দুই ভাগ করা হবে
 
     public List<String> chunkText(String text) {
         List<String> chunks = new ArrayList<>();
