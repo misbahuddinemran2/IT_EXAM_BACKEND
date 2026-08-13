@@ -72,7 +72,7 @@ private static final double CACHE_DISTANCE_THRESHOLD =
  */
 
 private static final double VECTOR_DISTANCE_THRESHOLD =
-        0.45;
+        0.60;
 
 private static final int TOP_K = 5;
 
