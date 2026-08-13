@@ -23,13 +23,14 @@ public class EmbeddingService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
+    // এমবেডিং মডেল টেক্সট জেনারেশন মডেল থেকে আলাদা — এটা ৭৬৮-dimension ভেক্টর দেয়
     private static final String EMBEDDING_MODEL = "gemini-embedding-001";
 
-    // Task type constants — কল করার সময় এগুলো ব্যবহার করবেন
+    // Retrieval task type constants
     public static final String TASK_TYPE_DOCUMENT = "RETRIEVAL_DOCUMENT";
     public static final String TASK_TYPE_QUERY = "RETRIEVAL_QUERY";
 
-    // পুরনো কল যদি কোথাও থেকে যায়, সেগুলো ভেঙে না গিয়ে RETRIEVAL_QUERY ব্যবহার করবে
+    // পুরনো কোথাও থেকে থাকলে ভেঙে না গিয়ে ডিফল্টভাবে QUERY টাইপ ব্যবহার করবে
     public float[] generateEmbedding(String text) {
         return generateEmbedding(text, TASK_TYPE_QUERY);
     }
