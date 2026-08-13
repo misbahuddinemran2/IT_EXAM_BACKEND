@@ -270,6 +270,8 @@ String embeddingSourceText = question;
 
     float[] questionEmbeddingArray;
 
+    log.info("Generating embedding for text (length={}): '{}'",
+            embeddingSourceText.length(), embeddingSourceText);
 
     try {
 
@@ -454,6 +456,27 @@ String embeddingSourceText = question;
         );
 
         closestDistance = null;
+    }
+
+    /*
+     * DIAGNOSTIC: closestDistance null আসতে পারে দুই কারণে —
+     * (ক) উপরের catch ব্লকে exception ধরা পড়েছে (তখন WARN লগ হয়েই গেছে), অথবা
+     * (খ) query exception ছাড়াই সফলভাবে ০টা row রিটার্ন করেছে (JPA-র স্বাভাবিক আচরণ)।
+     * দ্বিতীয় কেসটাই root-cause বোঝা কঠিন করে তোলে, তাই এখানে আলাদা করে
+     * chunk টেবিলের row count লগ করা হচ্ছে — table খালি নাকি query-ই ফলাফল পায়নি
+     * সেটা পরবর্তী বার এই সমস্যা হলে সরাসরি বোঝা যাবে।
+     */
+    if (closestDistance == null) {
+        try {
+            long totalChunks = chunkRepository.count();
+            log.warn(
+                    "findClosestDistance returned NULL (no exception thrown). " +
+                    "Total rows in ict_book_chunk table: {}. Question: '{}', embeddingSourceText: '{}'",
+                    totalChunks, question, embeddingSourceText
+            );
+        } catch (Exception countEx) {
+            log.warn("Diagnostic row-count check also failed", countEx);
+        }
     }
 
 
