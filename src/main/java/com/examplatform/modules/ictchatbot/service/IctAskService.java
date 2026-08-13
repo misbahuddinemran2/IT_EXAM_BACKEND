@@ -274,7 +274,7 @@ String embeddingSourceText = question;
     try {
 
         questionEmbeddingArray =
-                embeddingService.generateEmbedding(embeddingSourceText);
+                embeddingService.generateEmbedding(embeddingSourceText, EmbeddingService.TASK_TYPE_QUERY);
 
     } catch (Exception e) {
 
