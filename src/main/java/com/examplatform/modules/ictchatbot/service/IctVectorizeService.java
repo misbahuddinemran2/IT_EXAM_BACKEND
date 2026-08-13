@@ -45,6 +45,7 @@ public class IctVectorizeService {
         }
 
         // 2. প্রতিটা chunk-এর embedding বানাও + সেভ করো
+        // TPM (Tokens Per Minute) limit-এর মধ্যে থাকতে প্রতিটা request-এর পর একটা ছোট delay দেওয়া হচ্ছে
         int savedCount = 0;
         for (String chunkText : textChunks) {
             float[] embeddingArray = embeddingService.generateEmbedding(chunkText, EmbeddingService.TASK_TYPE_DOCUMENT);
@@ -61,6 +62,8 @@ public class IctVectorizeService {
 
             chunkRepository.save(chunk);
             savedCount++;
+
+            sleepBetweenCalls(chunkText);
         }
 
         // 3. upload status আপডেট করো
@@ -102,6 +105,8 @@ public class IctVectorizeService {
                 chunkRepository.save(chunk);
                 updated++;
 
+                sleepBetweenCalls(chunk.getContent());
+
             } catch (Exception e) {
                 log.error("Re-embed failed for chunk id={}", chunk.getId(), e);
             }
@@ -110,6 +115,28 @@ public class IctVectorizeService {
         log.info("Re-embed complete. {} / {} chunks updated.", updated, allChunks.size());
 
         return updated;
+    }
+
+    /*
+     * TPM (Tokens Per Minute) বাজেট রক্ষা করার জন্য প্রতিটা embedding call-এর পর delay।
+     * chunk যত বড়, delay তত বেশি — কারণ বড় chunk বেশি টোকেন consume করে।
+     * বেস ডিলে ১২০০ms (RPM safety), + প্রতি ১০০ শব্দে বাড়তি ২০০ms (TPM safety margin)।
+     */
+    private void sleepBetweenCalls(String chunkText) {
+        int wordCount = (chunkText == null || chunkText.isBlank())
+                ? 0
+                : chunkText.trim().split("\\s+").length;
+
+        long baseDelayMs = 1200L;
+        long extraDelayMs = (wordCount / 100) * 200L;
+        long totalDelayMs = baseDelayMs + extraDelayMs;
+
+        try {
+            Thread.sleep(totalDelayMs);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Vectorize delay interrupted", ie);
+        }
     }
 
     private String floatArrayToVectorString(float[] arr) {
