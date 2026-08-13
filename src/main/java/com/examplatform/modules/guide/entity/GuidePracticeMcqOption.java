@@ -1,46 +1,37 @@
 package com.examplatform.modules.guide.entity;
 
 import com.examplatform.common.entity.BaseEntity;
-import com.examplatform.modules.taxonomy.entity.Topic;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
-@Table(name = "guide_practice_mcq")
+@Table(name = "guide_practice_mcq_option")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class GuidePracticeMcq extends BaseEntity {
+public class GuidePracticeMcqOption extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "topic_id", nullable = false)
-    private Topic topic;
+    @JoinColumn(name = "mcq_id", nullable = false)
+    private GuidePracticeMcq mcq;
 
-    @Column(name = "question_text", nullable = false, columnDefinition = "TEXT")
-    private String questionText;
+    @Column(name = "option_key", nullable = false, length = 5)
+    private String optionKey;
 
-    @Column(name = "question_text_bn", columnDefinition = "TEXT")
-    private String questionTextBn;
+    @Column(name = "option_text", nullable = false, columnDefinition = "TEXT")
+    private String optionText;
 
-    @Column(name = "is_board_question", nullable = false)
-    private boolean isBoardQuestion = false;
+    @Column(name = "option_text_bn", columnDefinition = "TEXT")
+    private String optionTextBn;
 
-    @Column(name = "board", length = 100)
-    private String board;
+    @Column(name = "is_correct", nullable = false)
+    private boolean isCorrect = false;
 
-    @Column(name = "year_appeared")
-    private Integer yearAppeared;
+    @Column(name = "explanation", columnDefinition = "TEXT")
+    private String explanation;
 
-    @Column(name = "sort_order", nullable = false)
-    private int sortOrder = 0;
-
-    @Builder.Default
-    @OneToMany(mappedBy = "mcq", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @OrderBy("orderIndex ASC")
-    private List<GuidePracticeMcqOption> options = new ArrayList<>();
+    @Column(name = "order_index", nullable = false)
+    private int orderIndex = 0;
 }
