@@ -1,5 +1,7 @@
 package com.examplatform.modules.guide.controller;
 
+import com.examplatform.modules.guide.dto.GuideContentResponse;
+import com.examplatform.modules.guide.entity.GuideContent;
 import com.examplatform.modules.guide.service.GuideContentStudentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,8 +21,9 @@ public class GuideStudentController {
     // Read screen
     @GetMapping("/topics/{topicId}/content")
     public ResponseEntity<?> getContent(@PathVariable String topicId) {
+        GuideContent content = guideContentStudentService.getPublishedContent(topicId);
         return ResponseEntity.ok(Map.of("success", true,
-                "data", guideContentStudentService.getPublishedContent(topicId)));
+                "data", GuideContentResponse.from(content)));
     }
 
     // Practice Options screen — MCQ
