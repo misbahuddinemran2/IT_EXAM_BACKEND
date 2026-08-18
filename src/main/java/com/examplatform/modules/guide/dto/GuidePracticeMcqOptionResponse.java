@@ -1,5 +1,6 @@
 package com.examplatform.modules.guide.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -10,7 +11,10 @@ public class GuidePracticeMcqOptionResponse {
     private String optionKey;
     private String optionText;
     private String optionTextBn;
+
+    @JsonProperty("isCorrect")
     private boolean isCorrect;
+
     private String explanation;
     private int orderIndex;
 }
