@@ -1,5 +1,6 @@
 package com.examplatform.modules.guide.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -10,7 +11,10 @@ public class GuidePracticeCqResponse {
     private String topicId;
     private String stimulus;
     private String stimulusBn;
+
+    @JsonProperty("isBoardQuestion")
     private boolean isBoardQuestion;
+
     private String board;
     private Integer examYear;
 
