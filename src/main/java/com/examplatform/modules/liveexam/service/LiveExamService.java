@@ -908,7 +908,7 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .questions(questions)
                 .build();
 }
-    // ============================================
+// ============================================
     // 11. QUESTION STATS & USER HISTORY
     // ============================================
     @Transactional(readOnly = true)
@@ -916,12 +916,39 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
         long correct = liveQuestionAttemptRepository.countByQuestionIdAndIsCorrectTrue(questionId);
         long wrong = liveQuestionAttemptRepository.countByQuestionIdAndIsCorrectFalse(questionId);
         long skipped = liveQuestionAttemptRepository.countByQuestionIdAndIsSkippedTrue(questionId);
-        long total = correct + wrong;
 
+        String questionText = questionRepository.findById(questionId)
+                .map(Question::getQuestionText)
+                .orElse(null);
+
+        return buildStatsResponse(questionId, questionText, correct, wrong, skipped);
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuestionStatsResponse> getHardestQuestions(int minAttempts, int limit) {
+        List<LiveQuestionAttemptRepository.QuestionAggregateProjection> rows =
+                liveQuestionAttemptRepository.findHardestQuestions(minAttempts, limit);
+
+        List<QuestionStatsResponse> result = new ArrayList<>();
+        for (var row : rows) {
+            String questionText = questionRepository.findById(row.getQuestionId())
+                    .map(Question::getQuestionText)
+                    .orElse(null);
+            result.add(buildStatsResponse(
+                    row.getQuestionId(), questionText,
+                    row.getCorrectCount(), row.getWrongCount(), row.getSkipCount()));
+        }
+        return result;
+    }
+
+    private QuestionStatsResponse buildStatsResponse(String questionId, String questionText,
+                                                       long correct, long wrong, long skipped) {
+        long total = correct + wrong;
         double accuracy = total > 0 ? (correct * 100.0 / total) : 0.0;
 
         return QuestionStatsResponse.builder()
                 .questionId(questionId)
+                .questionText(questionText)
                 .totalAttempts(total + skipped)
                 .totalCorrect(correct)
                 .totalWrong(wrong)
@@ -931,17 +958,31 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
     }
 
     @Transactional(readOnly = true)
-    public List<UserQuestionAttemptResponse> getUserAttemptHistory(String userId) {
-        return liveQuestionAttemptRepository.findByUserId(userId).stream()
-                .map(a -> UserQuestionAttemptResponse.builder()
-                        .questionId(a.getQuestionId())
-                        .examId(a.getExamId())
-                        .sessionId(a.getSessionId())
-                        .selectedOptionId(a.getSelectedOptionId())
-                        .isCorrect(a.isCorrect())
-                        .isSkipped(a.isSkipped())
-                        .answeredAt(a.getAnsweredAt())
-                        .build())
+    public List<UserQuestionAttemptResponse> getUserAttemptHistory(String userId, Boolean onlyWrong) {
+        List<LiveQuestionAttempt> attempts = liveQuestionAttemptRepository.findByUserId(userId);
+
+        return attempts.stream()
+                .filter(a -> onlyWrong == null || !onlyWrong || (!a.isCorrect() && !a.isSkipped()))
+                .map(a -> {
+                    String questionText = questionRepository.findById(a.getQuestionId())
+                            .map(Question::getQuestionText)
+                            .orElse(null);
+                    String examName = examRepository.findById(a.getExamId())
+                            .map(Exam::getName)
+                            .orElse(null);
+                    return UserQuestionAttemptResponse.builder()
+                            .questionId(a.getQuestionId())
+                            .questionText(questionText)
+                            .examId(a.getExamId())
+                            .examName(examName)
+                            .sessionId(a.getSessionId())
+                            .selectedOptionId(a.getSelectedOptionId())
+                            .isCorrect(a.isCorrect())
+                            .isSkipped(a.isSkipped())
+                            .answeredAt(a.getAnsweredAt())
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
+    
 }
