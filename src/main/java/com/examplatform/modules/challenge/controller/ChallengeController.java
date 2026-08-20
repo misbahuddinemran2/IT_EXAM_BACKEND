@@ -110,6 +110,18 @@ public class ChallengeController {
         }
     }
 
+    @GetMapping("/search-friends")
+    public ResponseEntity<?> searchFriends(@RequestHeader("X-User-Id") String userId,
+                                            @RequestParam String q) {
+        try {
+            return ResponseEntity.ok(Map.of("success", true,
+                    "data", challengeService.searchFriends(userId, q)));
+        } catch (Exception e) {
+            log.error("searchFriends failed", e);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
     @GetMapping("/mine")
     public ResponseEntity<?> getMine(@RequestHeader("X-User-Id") String userId,
                                       @RequestParam(required = false) String status) {
