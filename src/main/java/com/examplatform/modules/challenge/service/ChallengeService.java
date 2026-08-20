@@ -156,7 +156,7 @@ public class ChallengeService {
         if (topic != null) {
             pool = guidePracticeMcqRepository.findByTopicId(topic.getId());
         } else {
-            pool = guidePracticeMcqRepository.findByTopicChapterId(chapter.getId());
+           pool = guidePracticeMcqRepository.findByTopic_Chapter_Id(chapter.getId());
         }
 
         Collections.shuffle(pool);
