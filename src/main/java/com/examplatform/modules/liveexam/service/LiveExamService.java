@@ -11,7 +11,9 @@ import com.examplatform.modules.exam.repository.ExamTopicConfigRepository;
 import com.examplatform.modules.exam.entity.ExamAttemptHistory;
 import com.examplatform.modules.liveexam.dto.*;
 import com.examplatform.modules.liveexam.entity.LiveExamSession;
+import com.examplatform.modules.liveexam.entity.LiveQuestionAttempt;
 import com.examplatform.modules.liveexam.repository.LiveExamSessionRepository;
+import com.examplatform.modules.liveexam.repository.LiveQuestionAttemptRepository;
 import com.examplatform.modules.question.entity.Option;
 import com.examplatform.modules.question.entity.Question;
 import com.examplatform.modules.question.repository.OptionRepository;
@@ -52,6 +54,7 @@ public class LiveExamService {
     private final OptionRepository optionRepository;
     private final LiveExamSessionRepository liveSessionRepository;
     private final ExamAttemptHistoryRepository attemptHistoryRepository;
+    private final LiveQuestionAttemptRepository liveQuestionAttemptRepository;
     private final ExamSubjectConfigRepository subjectConfigRepository;
     private final ExamTopicConfigRepository topicConfigRepository;
     private final SubjectRepository subjectRepository;
@@ -429,22 +432,45 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
         int wrongCount = 0;
         int skipCount = 0;
 
+        List<LiveQuestionAttempt> attemptsToSave = new ArrayList<>();
+
         for (ExamQuestion eq : examQuestions) {
             String selectedOptionId = session.getAnswers().get(eq.getQuestionId());
+
+            LiveQuestionAttempt.LiveQuestionAttemptBuilder attemptBuilder = LiveQuestionAttempt.builder()
+                    .id(UUID.randomUUID().toString())
+                    .sessionId(session.getId())
+                    .userId(session.getUserId())
+                    .examId(exam.getId())
+                    .questionId(eq.getQuestionId());
+
             if (selectedOptionId == null) {
                 skipCount++;
+                attemptsToSave.add(attemptBuilder
+                        .isSkipped(true)
+                        .isCorrect(false)
+                        .build());
                 continue;
             }
 
             Option opt = optionRepository.findById(selectedOptionId).orElse(null);
-            if (opt != null && opt.isCorrect()) {
+            boolean correct = opt != null && opt.isCorrect();
+
+            if (correct) {
                 obtained = obtained.add(eq.getMarks());
                 correctCount++;
             } else {
                 obtained = obtained.subtract(negativePerWrong);
                 wrongCount++;
             }
+
+            attemptsToSave.add(attemptBuilder
+                    .selectedOptionId(selectedOptionId)
+                    .isCorrect(correct)
+                    .isSkipped(false)
+                    .build());
         }
+        liveQuestionAttemptRepository.saveAll(attemptsToSave);
         if (obtained.compareTo(BigDecimal.ZERO) < 0) obtained = BigDecimal.ZERO;
 
         session.setObtainedMarks(obtained);
