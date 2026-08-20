@@ -30,6 +30,7 @@ public class ChallengeController {
         }
     }
 
+    
     @PostMapping("/{id}/accept")
     public ResponseEntity<?> accept(@RequestHeader("X-User-Id") String userId, @PathVariable String id) {
         try {
@@ -41,6 +42,29 @@ public class ChallengeController {
         }
     }
 
+        @PutMapping("/{id}")
+    public ResponseEntity<?> editFriend(@RequestHeader("X-User-Id") String userId,
+                                         @PathVariable String id,
+                                         @RequestBody CreateFriendChallengeRequest req) {
+        try {
+            return ResponseEntity.ok(Map.of("success", true,
+                    "data", challengeService.editFriendChallenge(userId, id, req)));
+        } catch (Exception e) {
+            log.error("editFriend failed", e);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteFriend(@RequestHeader("X-User-Id") String userId, @PathVariable String id) {
+        try {
+            challengeService.deleteFriendChallenge(userId, id);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (Exception e) {
+            log.error("deleteFriend failed", e);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
     @PostMapping("/{id}/decline")
     public ResponseEntity<?> decline(@RequestHeader("X-User-Id") String userId, @PathVariable String id) {
         try {
