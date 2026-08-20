@@ -27,5 +27,10 @@ public interface ChallengeRepository extends JpaRepository<Challenge, String> {
            "AND (:status IS NULL OR c.status = :status) ORDER BY c.createdAt DESC")
     List<Challenge> findMyChallenges(@Param("userId") String userId, @Param("status") Challenge.Status status);
 
-    Optional<Challenge> findByIdAndStatus(String id, Challenge.Status status);
+        Optional<Challenge> findByIdAndStatus(String id, Challenge.Status status);
+
+    @Query("SELECT c FROM Challenge c WHERE c.mode = 'FRIEND' AND c.status = 'PENDING' " +
+           "AND ((c.creator.id = :userA AND c.opponent.id = :userB) " +
+           "OR (c.creator.id = :userB AND c.opponent.id = :userA))")
+    Optional<Challenge> findPendingBetween(@Param("userA") String userA, @Param("userB") String userB);
 }
