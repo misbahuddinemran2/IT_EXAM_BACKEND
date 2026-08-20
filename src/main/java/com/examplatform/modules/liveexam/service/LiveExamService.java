@@ -908,4 +908,40 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .questions(questions)
                 .build();
 }
+    // ============================================
+    // 11. QUESTION STATS & USER HISTORY
+    // ============================================
+    @Transactional(readOnly = true)
+    public QuestionStatsResponse getQuestionStats(String questionId) {
+        long correct = liveQuestionAttemptRepository.countByQuestionIdAndIsCorrectTrue(questionId);
+        long wrong = liveQuestionAttemptRepository.countByQuestionIdAndIsCorrectFalse(questionId);
+        long skipped = liveQuestionAttemptRepository.countByQuestionIdAndIsSkippedTrue(questionId);
+        long total = correct + wrong;
+
+        double accuracy = total > 0 ? (correct * 100.0 / total) : 0.0;
+
+        return QuestionStatsResponse.builder()
+                .questionId(questionId)
+                .totalAttempts(total + skipped)
+                .totalCorrect(correct)
+                .totalWrong(wrong)
+                .totalSkipped(skipped)
+                .accuracyRate(Math.round(accuracy * 100.0) / 100.0)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserQuestionAttemptResponse> getUserAttemptHistory(String userId) {
+        return liveQuestionAttemptRepository.findByUserId(userId).stream()
+                .map(a -> UserQuestionAttemptResponse.builder()
+                        .questionId(a.getQuestionId())
+                        .examId(a.getExamId())
+                        .sessionId(a.getSessionId())
+                        .selectedOptionId(a.getSelectedOptionId())
+                        .isCorrect(a.isCorrect())
+                        .isSkipped(a.isSkipped())
+                        .answeredAt(a.getAnsweredAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
 }
