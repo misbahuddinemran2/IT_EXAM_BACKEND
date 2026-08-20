@@ -202,8 +202,7 @@ public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
         return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
     }
 }
-
-    // GET /api/v1/live-exams/questions/{questionId}/stats
+// GET /api/v1/live-exams/questions/{questionId}/stats
     @GetMapping("/questions/{questionId}/stats")
     public ResponseEntity<?> getQuestionStats(@PathVariable String questionId) {
         try {
@@ -215,17 +214,48 @@ public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
         }
     }
 
-    // GET /api/v1/live-exams/my-attempts
-    @GetMapping("/my-attempts")
-    public ResponseEntity<?> getMyAttemptHistory(@RequestHeader("X-User-Id") String userId) {
+    // GET /api/v1/live-exams/questions/hardest?minAttempts=5&limit=20
+    @GetMapping("/questions/hardest")
+    public ResponseEntity<?> getHardestQuestions(
+            @RequestParam(defaultValue = "5") int minAttempts,
+            @RequestParam(defaultValue = "20") int limit) {
         try {
-            List<UserQuestionAttemptResponse> data = liveExamService.getUserAttemptHistory(userId);
+            List<QuestionStatsResponse> data = liveExamService.getHardestQuestions(minAttempts, limit);
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception ex) {
+            log.error("Error fetching hardest questions", ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
+
+    // GET /api/v1/live-exams/my-attempts?onlyWrong=true
+    @GetMapping("/my-attempts")
+    public ResponseEntity<?> getMyAttemptHistory(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestParam(required = false) Boolean onlyWrong) {
+        try {
+            List<UserQuestionAttemptResponse> data = liveExamService.getUserAttemptHistory(userId, onlyWrong);
             return ResponseEntity.ok(Map.of("success", true, "data", data));
         } catch (Exception ex) {
             log.error("Error fetching attempt history for user {}", userId, ex);
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
         }
     }
+
+    // GET /api/v1/live-exams/users/{userId}/attempts?onlyWrong=true  (Admin: dekhte pabe je kono userer history)
+    @GetMapping("/users/{userId}/attempts")
+    public ResponseEntity<?> getUserAttemptHistoryAdmin(
+            @PathVariable String userId,
+            @RequestParam(required = false) Boolean onlyWrong) {
+        try {
+            List<UserQuestionAttemptResponse> data = liveExamService.getUserAttemptHistory(userId, onlyWrong);
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception ex) {
+            log.error("Error fetching attempt history for user {}", userId, ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
+    
 }
 
 
