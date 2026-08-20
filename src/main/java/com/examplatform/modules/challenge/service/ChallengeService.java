@@ -52,10 +52,17 @@ public class ChallengeService {
     private final TopicRepository topicRepository;
 
     // ---------- Friend Challenge তৈরি ----------
-    @Transactional
+
+            @Transactional
     public ChallengeDetailResponse createFriendChallenge(String creatorId, CreateFriendChallengeRequest req) {
         User creator = getUser(creatorId);
         User opponent = getUser(req.getOpponentId());
+
+        if (challengeRepository.findPendingBetween(creatorId, req.getOpponentId()).isPresent()) {
+            throw new IllegalStateException(
+                    "এই বন্ধুর সাথে ইতিমধ্যে একটি চ্যালেঞ্জ অপেক্ষমান আছে, সেটি গ্রহণ/প্রত্যাখ্যান না হওয়া পর্যন্ত নতুন চ্যালেঞ্জ পাঠানো যাবে না");
+        }
+
         Chapter chapter = chapterRepository.findById(req.getChapterId())
                 .orElseThrow(() -> new EntityNotFoundException("Chapter not found"));
         Topic topic = req.getTopicId() != null
@@ -158,6 +165,49 @@ public class ChallengeService {
             result.put("challenge", toDetailResponse(challenge, userId));
         }
         return result;
+    }
+            // ---------- Pending Friend Challenge Edit ----------
+    @Transactional
+    public ChallengeDetailResponse editFriendChallenge(String userId, String challengeId, CreateFriendChallengeRequest req) {
+        Challenge challenge = getChallengeOrThrow(challengeId);
+        if (!challenge.getCreator().getId().equals(userId)) {
+            throw new SecurityException("শুধু যে চ্যালেঞ্জ পাঠিয়েছে সে-ই এটি এডিট করতে পারবে");
+        }
+        if (challenge.getStatus() != Challenge.Status.PENDING) {
+            throw new IllegalStateException("গৃহীত/সম্পন্ন চ্যালেঞ্জ এডিট করা যাবে না");
+        }
+
+        Chapter chapter = chapterRepository.findById(req.getChapterId())
+                .orElseThrow(() -> new EntityNotFoundException("Chapter not found"));
+        Topic topic = req.getTopicId() != null
+                ? topicRepository.findById(req.getTopicId()).orElse(null)
+                : null;
+        int questionCount = resolveQuestionCount(req.getQuestionCount());
+
+        challenge.setChapter(chapter);
+        challenge.setTopic(topic);
+        challenge.setQuestionCount(questionCount);
+        challengeRepository.save(challenge);
+
+        // পুরনো প্রশ্ন সেট মুছে নতুন করে বানানো হচ্ছে
+        List<ChallengeQuestion> oldQuestions = challengeQuestionRepository.findByChallengeIdOrderByOrderIndexAsc(challengeId);
+        challengeQuestionRepository.deleteAll(oldQuestions);
+        buildQuestionSet(challenge, chapter, topic, questionCount);
+
+        return toDetailResponse(challenge, userId);
+    }
+
+    // ---------- Pending Friend Challenge Delete ----------
+    @Transactional
+    public void deleteFriendChallenge(String userId, String challengeId) {
+        Challenge challenge = getChallengeOrThrow(challengeId);
+        if (!challenge.getCreator().getId().equals(userId)) {
+            throw new SecurityException("শুধু যে চ্যালেঞ্জ পাঠিয়েছে সে-ই এটি মুছতে পারবে");
+        }
+        if (challenge.getStatus() != Challenge.Status.PENDING) {
+            throw new IllegalStateException("গৃহীত/সম্পন্ন চ্যালেঞ্জ মুছে ফেলা যাবে না");
+        }
+        challengeRepository.delete(challenge); // ON DELETE CASCADE দিয়ে questions ও মুছে যাবে
     }
 
     // ---------- প্রশ্ন সেট তৈরি (creation সময়ে একবারই) ----------
