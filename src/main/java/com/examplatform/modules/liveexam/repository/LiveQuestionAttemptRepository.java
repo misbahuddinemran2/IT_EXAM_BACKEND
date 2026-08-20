@@ -1,3 +1,4 @@
+
 package com.examplatform.modules.liveexam.repository;
 
 import com.examplatform.modules.liveexam.entity.LiveQuestionAttempt;
@@ -31,7 +32,7 @@ public interface LiveQuestionAttemptRepository extends JpaRepository<LiveQuestio
             FROM live_question_attempts
             GROUP BY question_id
             HAVING COUNT(*) FILTER (WHERE is_skipped = false) >= :minAttempts
-            ORDER BY (COUNT(*) FILTER (WHERE is_correct = true)::decimal
+            ORDER BY (CAST(COUNT(*) FILTER (WHERE is_correct = true) AS decimal)
                       / NULLIF(COUNT(*) FILTER (WHERE is_skipped = false), 0)) ASC
             LIMIT :limit
             """, nativeQuery = true)
