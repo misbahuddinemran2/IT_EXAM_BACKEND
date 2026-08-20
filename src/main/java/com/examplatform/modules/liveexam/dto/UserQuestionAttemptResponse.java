@@ -11,7 +11,9 @@ import java.time.LocalDateTime;
 @Builder
 public class UserQuestionAttemptResponse {
     private String questionId;
+    private String questionText;
     private String examId;
+    private String examName;
     private String sessionId;
     private String selectedOptionId;
     private boolean isCorrect;
