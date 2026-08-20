@@ -202,6 +202,30 @@ public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
         return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
     }
 }
+
+    // GET /api/v1/live-exams/questions/{questionId}/stats
+    @GetMapping("/questions/{questionId}/stats")
+    public ResponseEntity<?> getQuestionStats(@PathVariable String questionId) {
+        try {
+            QuestionStatsResponse data = liveExamService.getQuestionStats(questionId);
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception ex) {
+            log.error("Error fetching stats for question {}", questionId, ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
+
+    // GET /api/v1/live-exams/my-attempts
+    @GetMapping("/my-attempts")
+    public ResponseEntity<?> getMyAttemptHistory(@RequestHeader("X-User-Id") String userId) {
+        try {
+            List<UserQuestionAttemptResponse> data = liveExamService.getUserAttemptHistory(userId);
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception ex) {
+            log.error("Error fetching attempt history for user {}", userId, ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
+    }
 }
 
 
