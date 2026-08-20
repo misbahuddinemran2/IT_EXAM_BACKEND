@@ -456,4 +456,20 @@ public class ChallengeService {
                 .questions(questions)
                 .build();
     }
+        // ---------- বন্ধু খোঁজা (নাম/ফোন/ইমেইল দিয়ে সার্চ) ----------
+    public List<UserSearchResultResponse> searchFriends(String currentUserId, String keyword) {
+        if (keyword == null || keyword.trim().length() < 2) {
+            return List.of();
+        }
+        return userRepository.searchUsers(keyword.trim()).stream()
+                .filter(u -> !u.getId().equals(currentUserId))
+                .limit(20)
+                .map(u -> new UserSearchResultResponse(
+                        u.getId(),
+                        u.getFullName(),
+                        u.getFullNameBn(),
+                        u.getInstitutionName(),
+                        u.getAvatarUrl()))
+                .collect(Collectors.toList());
+    }
 }
