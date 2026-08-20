@@ -12,4 +12,7 @@ public interface GuidePracticeMcqRepository extends JpaRepository<GuidePracticeM
     List<GuidePracticeMcq> findByTopicIdAndIsBoardQuestionTrueOrderBySortOrderAsc(String topicId);
 
     List<GuidePracticeMcq> findAllByOrderBySortOrderAsc();
+        List<GuidePracticeMcq> findByTopicId(String topicId);
+
+    List<GuidePracticeMcq> findByTopic_Chapter_Id(String chapterId);
 }
