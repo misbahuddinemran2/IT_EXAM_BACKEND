@@ -26,10 +26,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChallengeService {
 
-    private static final int POINTS_PER_CORRECT = 2;
+        private static final int POINTS_PER_CORRECT = 2;
     private static final int WIN_BONUS = 10;
     private static final int DRAW_BONUS = 3;
     private static final int CHALLENGE_EXPIRY_HOURS = 48;
+    private static final int MIN_QUESTION_COUNT = 5;
+    private static final int MAX_QUESTION_COUNT = 30;
+    private static final int DEFAULT_QUESTION_COUNT = 10;
+
+    private int resolveQuestionCount(Integer requested) {
+        int count = requested != null ? requested : DEFAULT_QUESTION_COUNT;
+        if (count < MIN_QUESTION_COUNT) count = MIN_QUESTION_COUNT;
+        if (count > MAX_QUESTION_COUNT) count = MAX_QUESTION_COUNT;
+        return count;
+    }
 
     private final ChallengeRepository challengeRepository;
     private final ChallengeQuestionRepository challengeQuestionRepository;
@@ -51,7 +61,7 @@ public class ChallengeService {
         Topic topic = req.getTopicId() != null
                 ? topicRepository.findById(req.getTopicId()).orElse(null)
                 : null;
-        int questionCount = req.getQuestionCount() != null ? req.getQuestionCount() : 10;
+                int questionCount = resolveQuestionCount(req.getQuestionCount());
 
         Challenge challenge = Challenge.builder()
                 .mode(Challenge.Mode.FRIEND)
@@ -94,7 +104,7 @@ public class ChallengeService {
     // ---------- Random Matchmaking ----------
     @Transactional
     public Map<String, Object> quickMatch(String userId, QuickMatchRequest req) {
-        int questionCount = req.getQuestionCount() != null ? req.getQuestionCount() : 10;
+                int questionCount = resolveQuestionCount(req.getQuestionCount());
 
         List<Challenge> waiting = challengeRepository.findWaitingRandomMatch(
                 userId, req.getChapterId(), req.getTopicId(), questionCount);
