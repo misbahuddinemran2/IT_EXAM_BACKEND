@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
-
+import com.examplatform.modules.taxonomy.entity.Subject;
 import com.examplatform.modules.leaderboard.service.OverallLeaderboardService;
 
 
@@ -817,6 +817,174 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .questions(qResults)
                 .build();
     }
+
+    // ============================================
+    // 9e. REVISION MODE — ভুল করা প্রশ্নগুলো থেকে stateless mini-quiz
+    // কোনো নির্দিষ্ট exam-এর সাথে বাঁধা না, negative marking নেই, DB-তে সেভ হয় না
+    // ============================================
+    private static final int REVISION_DEFAULT_LIMIT = 20;
+    private static final int REVISION_MAX_LIMIT = 50;
+
+    @Transactional(readOnly = true)
+    public RevisionQuizResponse getRevisionQuestions(String userId, Integer limit) {
+        int cap = (limit == null || limit <= 0) ? REVISION_DEFAULT_LIMIT : Math.min(limit, REVISION_MAX_LIMIT);
+
+        // publish-gate মেনে, শুধু ভুল প্রশ্নগুলো
+        List<UserQuestionAttemptResponse> wrongAttempts = getUserAttemptHistory(userId, true, true);
+
+        // একই প্রশ্ন একাধিক exam-এ ভুল হলে duplicate বাদ — সবচেয়ে সাম্প্রতিক attempt-টা রাখা হচ্ছে
+        Map<String, UserQuestionAttemptResponse> dedup = new LinkedHashMap<>();
+        for (UserQuestionAttemptResponse a : wrongAttempts) {
+            UserQuestionAttemptResponse existing = dedup.get(a.getQuestionId());
+            if (existing == null || (a.getAnsweredAt() != null && existing.getAnsweredAt() != null
+                    && a.getAnsweredAt().isAfter(existing.getAnsweredAt()))) {
+                dedup.put(a.getQuestionId(), a);
+            }
+        }
+
+        List<String> questionIds = new ArrayList<>(dedup.keySet());
+        Collections.shuffle(questionIds);
+        if (questionIds.size() > cap) {
+            questionIds = questionIds.subList(0, cap);
+        }
+
+        List<RevisionQuestionDto> questions = new ArrayList<>();
+        for (String qid : questionIds) {
+            Question q = questionRepository.findById(qid).orElse(null);
+            if (q == null) continue;
+
+            List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(qid);
+            List<RevisionQuestionDto.OptionDto> optionDtos = options.stream()
+                    .map(o -> RevisionQuestionDto.OptionDto.builder()
+                            .optionId(o.getId())
+                            .optionKey(o.getOptionKey())
+                            .optionText(o.getOptionText())
+                            .optionTextBn(o.getOptionTextBn())
+                            .build())
+                    .collect(Collectors.toList());
+
+            questions.add(RevisionQuestionDto.builder()
+                    .questionId(q.getId())
+                    .questionText(q.getQuestionText())
+                    .questionTextBn(q.getQuestionTextBn())
+                    .options(optionDtos)
+                    .build());
+        }
+
+        return RevisionQuizResponse.builder()
+                .totalQuestions(questions.size())
+                .questions(questions)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public RevisionResultResponse submitRevision(RevisionSubmitRequest request) {
+        List<String> questionIds = request.getQuestionIds();
+        Map<String, String> answers = request.getAnswers() == null ? Map.of() : request.getAnswers();
+
+        if (questionIds == null || questionIds.isEmpty()) {
+            throw new RuntimeException("No questions provided for revision submit.");
+        }
+
+        int correctCount = 0, wrongCount = 0, skipCount = 0;
+        List<RevisionResultResponse.QuestionResultDto> results = new ArrayList<>();
+
+        for (String qid : questionIds) {
+            Question q = questionRepository.findById(qid).orElse(null);
+            if (q == null) continue;
+
+            List<Option> options = optionRepository.findAllByQuestionIdOrderByOrderIndex(qid);
+            Option correct = options.stream().filter(Option::isCorrect).findFirst().orElse(null);
+
+            String selectedId = answers.get(qid);
+            Option selected = selectedId == null ? null : options.stream()
+                    .filter(o -> o.getId().equals(selectedId)).findFirst().orElse(null);
+
+            boolean isCorrect = selected != null && selected.isCorrect();
+            boolean isSkipped = selectedId == null;
+
+            if (isSkipped) skipCount++;
+            else if (isCorrect) correctCount++;
+            else wrongCount++;
+
+            results.add(RevisionResultResponse.QuestionResultDto.builder()
+                    .questionId(q.getId())
+                    .questionText(q.getQuestionText())
+                    .selectedOptionId(selectedId)
+                    .selectedOptionText(selected == null ? null : selected.getOptionText())
+                    .isCorrect(isCorrect)
+                    .isSkipped(isSkipped)
+                    .correctOptionId(correct == null ? null : correct.getId())
+                    .correctOptionText(correct == null ? null : correct.getOptionText())
+                    .explanation(correct == null ? null : correct.getExplanation())
+                    .build());
+        }
+
+        int total = results.size();
+        double accuracy = total > 0 ? (correctCount * 100.0 / total) : 0.0;
+
+        return RevisionResultResponse.builder()
+                .totalQuestions(total)
+                .correctCount(correctCount)
+                .wrongCount(wrongCount)
+                .skipCount(skipCount)
+                .accuracyRate(Math.round(accuracy * 100.0) / 100.0)
+                .questions(results)
+                .build();
+    }
+
+    // ============================================
+    // 9f. SUBJECT-WISE ACCURACY — publish-gate মানা সব attempt subject অনুযায়ী গ্রুপ
+    // ============================================
+    @Transactional(readOnly = true)
+    public List<SubjectAccuracyResponse> getSubjectAccuracy(String userId) {
+        // onlyWrong = null মানে সব attempt (correct + wrong + skipped) নেওয়া হচ্ছে
+        List<UserQuestionAttemptResponse> attempts = getUserAttemptHistory(userId, null, true);
+
+        Map<String, long[]> counters = new LinkedHashMap<>(); // subjectId -> [correct, wrong, skipped]
+        Map<String, String> subjectNames = new HashMap<>();
+
+        for (UserQuestionAttemptResponse a : attempts) {
+            Question q = questionRepository.findById(a.getQuestionId()).orElse(null);
+            Subject subject = q == null ? null : q.getSubject();
+
+            String subjectId = subject != null ? subject.getId() : "uncategorized";
+            String subjectName = subject != null
+                    ? (subject.getNameBn() != null && !subject.getNameBn().isBlank()
+                        ? subject.getNameBn() : subject.getName())
+                    : "অন্যান্য";
+
+            subjectNames.putIfAbsent(subjectId, subjectName);
+            long[] c = counters.computeIfAbsent(subjectId, k -> new long[3]);
+            if (a.isSkipped()) c[2]++;
+            else if (a.isCorrect()) c[0]++;
+            else c[1]++;
+        }
+
+        List<SubjectAccuracyResponse> result = new ArrayList<>();
+        for (Map.Entry<String, long[]> e : counters.entrySet()) {
+            long correct = e.getValue()[0];
+            long wrong = e.getValue()[1];
+            long skipped = e.getValue()[2];
+            long total = correct + wrong + skipped;
+            double accuracy = total > 0 ? (correct * 100.0 / total) : 0.0;
+
+            result.add(SubjectAccuracyResponse.builder()
+                    .subjectId(e.getKey())
+                    .subjectName(subjectNames.get(e.getKey()))
+                    .totalAttempts(total)
+                    .totalCorrect(correct)
+                    .totalWrong(wrong)
+                    .totalSkipped(skipped)
+                    .accuracyRate(Math.round(accuracy * 100.0) / 100.0)
+                    .build());
+        }
+
+        // দুর্বল subject আগে দেখানো — accuracy কম থেকে বেশি
+        result.sort(Comparator.comparingDouble(SubjectAccuracyResponse::getAccuracyRate));
+        return result;
+    }
+    
     // ============================================
     // 10. SCHEDULER HOOKS
     // ============================================
