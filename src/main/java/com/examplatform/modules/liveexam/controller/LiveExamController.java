@@ -295,5 +295,16 @@ public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
         }
     }
-    
+
+    // GET /api/v1/live-exams/chapter-accuracy
+@GetMapping("/chapter-accuracy")
+public ResponseEntity<?> getChapterAccuracy(@RequestHeader("X-User-Id") String userId) {
+    try {
+        List<ChapterAccuracyResponse> data = liveExamService.getChapterAccuracy(userId);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    } catch (Exception ex) {
+        log.error("Error building chapter accuracy for user {}", userId, ex);
+        return ResponseEntity.internalServerError().body(ApiResponse.error("চ্যাপ্টার-ভিত্তিক সঠিকতা লোড করা যায়নি"));
+    }
+}
 }
