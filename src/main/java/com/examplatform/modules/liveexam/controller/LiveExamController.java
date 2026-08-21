@@ -2,6 +2,7 @@ package com.examplatform.modules.liveexam.controller;
 import com.examplatform.modules.liveexam.dto.*;
 import com.examplatform.modules.liveexam.service.LiveExamService;
 import lombok.RequiredArgsConstructor;
+import com.examplatform.modules.liveexam.dto.ChapterAccuracyResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
