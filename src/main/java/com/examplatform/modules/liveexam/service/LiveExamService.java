@@ -984,6 +984,67 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
         result.sort(Comparator.comparingDouble(SubjectAccuracyResponse::getAccuracyRate));
         return result;
     }
+public List<ChapterAccuracyResponse> getChapterAccuracy(String userId) {
+    // onlyWrong = null মানে সব attempt (correct + wrong + skipped) নেওয়া হচ্ছে
+    List<UserQuestionAttemptResponse> attempts = getUserAttemptHistory(userId, null, true);
+
+    Map<String, long[]> counters = new LinkedHashMap<>(); // chapterId -> [correct, wrong, skipped]
+    Map<String, String> chapterNames = new HashMap<>();
+    Map<String, String> chapterSubjectIds = new HashMap<>();
+    Map<String, String> chapterSubjectNames = new HashMap<>();
+
+    for (UserQuestionAttemptResponse a : attempts) {
+        Question q = questionRepository.findById(a.getQuestionId()).orElse(null);
+        Chapter chapter = q == null ? null : q.getChapter();
+        Subject subject = q == null ? null : q.getSubject();
+
+        String chapterId = chapter != null ? chapter.getId() : "uncategorized";
+        String chapterName = chapter != null
+                ? (chapter.getNameBn() != null && !chapter.getNameBn().isBlank()
+                    ? chapter.getNameBn() : chapter.getName())
+                : "অন্যান্য";
+
+        String subjectId = subject != null ? subject.getId() : "uncategorized";
+        String subjectName = subject != null
+                ? (subject.getNameBn() != null && !subject.getNameBn().isBlank()
+                    ? subject.getNameBn() : subject.getName())
+                : "অন্যান্য";
+
+        chapterNames.putIfAbsent(chapterId, chapterName);
+        chapterSubjectIds.putIfAbsent(chapterId, subjectId);
+        chapterSubjectNames.putIfAbsent(chapterId, subjectName);
+
+        long[] c = counters.computeIfAbsent(chapterId, k -> new long[3]);
+        if (a.isSkipped()) c[2]++;
+        else if (a.isCorrect()) c[0]++;
+        else c[1]++;
+    }
+
+    List<ChapterAccuracyResponse> result = new ArrayList<>();
+    for (Map.Entry<String, long[]> e : counters.entrySet()) {
+        long correct = e.getValue()[0];
+        long wrong = e.getValue()[1];
+        long skipped = e.getValue()[2];
+        long total = correct + wrong + skipped;
+        double accuracy = total > 0 ? (correct * 100.0 / total) : 0.0;
+
+        result.add(ChapterAccuracyResponse.builder()
+                .chapterId(e.getKey())
+                .chapterName(chapterNames.get(e.getKey()))
+                .subjectId(chapterSubjectIds.get(e.getKey()))
+                .subjectName(chapterSubjectNames.get(e.getKey()))
+                .totalAttempts(total)
+                .totalCorrect(correct)
+                .totalWrong(wrong)
+                .totalSkipped(skipped)
+                .accuracyRate(Math.round(accuracy * 100.0) / 100.0)
+                .build());
+    }
+
+    // দুর্বল chapter আগে দেখানো — accuracy কম থেকে বেশি
+    result.sort(Comparator.comparingDouble(ChapterAccuracyResponse::getAccuracyRate));
+    return result;
+}
     
     // ============================================
     // 10. SCHEDULER HOOKS
