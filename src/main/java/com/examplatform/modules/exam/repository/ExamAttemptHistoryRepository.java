@@ -27,6 +27,9 @@ public interface ExamAttemptHistoryRepository extends JpaRepository<ExamAttemptH
     Optional<ExamAttemptHistory> findTopByUserIdAndExamIdOrderByAttemptNumberDesc(
             String userId, String examId
     );
+
+    // sessionId দিয়ে attempt history (result-publish gate চেক করার জন্য attemptNumber লাগবে)
+    Optional<ExamAttemptHistory> findBySessionId(String sessionId);
     
 // এই মেথডগুলো তোমার existing ExamAttemptHistoryRepository ইন্টারফেসে যোগ করো:
 
