@@ -27,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.examplatform.modules.taxonomy.entity.Subject;
+import com.examplatform.modules.taxonomy.entity.Chapter;
+import com.examplatform.modules.liveexam.dto.ChapterAccuracyResponse;
 import com.examplatform.modules.leaderboard.service.OverallLeaderboardService;
 
 
