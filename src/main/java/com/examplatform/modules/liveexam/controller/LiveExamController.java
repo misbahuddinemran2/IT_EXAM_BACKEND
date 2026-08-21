@@ -2,7 +2,6 @@ package com.examplatform.modules.liveexam.controller;
 import com.examplatform.modules.liveexam.dto.*;
 import com.examplatform.modules.liveexam.service.LiveExamService;
 import lombok.RequiredArgsConstructor;
-import com.examplatform.modules.liveexam.dto.ChapterAccuracyResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -298,14 +297,14 @@ public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
     }
 
     // GET /api/v1/live-exams/chapter-accuracy
-@GetMapping("/chapter-accuracy")
-public ResponseEntity<?> getChapterAccuracy(@RequestHeader("X-User-Id") String userId) {
-    try {
-        List<ChapterAccuracyResponse> data = liveExamService.getChapterAccuracy(userId);
-        return ResponseEntity.ok(ApiResponse.success(data));
-    } catch (Exception ex) {
-        log.error("Error building chapter accuracy for user {}", userId, ex);
-        return ResponseEntity.internalServerError().body(ApiResponse.error("চ্যাপ্টার-ভিত্তিক সঠিকতা লোড করা যায়নি"));
+    @GetMapping("/chapter-accuracy")
+    public ResponseEntity<?> getChapterAccuracy(@RequestHeader("X-User-Id") String userId) {
+        try {
+            List<ChapterAccuracyResponse> data = liveExamService.getChapterAccuracy(userId);
+            return ResponseEntity.ok(Map.of("success", true, "data", data));
+        } catch (Exception ex) {
+            log.error("Error fetching chapter accuracy for user {}", userId, ex);
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", ex.getMessage()));
+        }
     }
-}
 }
