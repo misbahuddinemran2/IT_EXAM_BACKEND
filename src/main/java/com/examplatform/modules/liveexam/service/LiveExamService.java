@@ -497,7 +497,7 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 .isPassed(passed)
                 .totalQuestions(examQuestions.size())
                 .correctCount(correctCount)
-                .wrongCount(wrongCount)
+                .wrongCount(wrongCount) 
                 .skipCount(skipCount)
                 .timeTakenSeconds(timeTakenSeconds)
                 .submittedAt(session.getSubmittedAt())
@@ -959,10 +959,21 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
 
     @Transactional(readOnly = true)
     public List<UserQuestionAttemptResponse> getUserAttemptHistory(String userId, Boolean onlyWrong) {
+        return getUserAttemptHistory(userId, onlyWrong, false);
+    }
+
+    // respectPublishGate = true হলে, result publish না হওয়া পর্যন্ত সেই exam-এর attempt গুলো বাদ যাবে
+    // (student-facing /my-attempts এর জন্য true, admin-facing endpoint এর জন্য false)
+    @Transactional(readOnly = true)
+    public List<UserQuestionAttemptResponse> getUserAttemptHistory(String userId, Boolean onlyWrong, boolean respectPublishGate) {
         List<LiveQuestionAttempt> attempts = liveQuestionAttemptRepository.findByUserId(userId);
+        Map<String, Boolean> publishCache = new HashMap<>();
 
         return attempts.stream()
                 .filter(a -> onlyWrong == null || !onlyWrong || (!a.isCorrect() && !a.isSkipped()))
+                .filter(a -> !respectPublishGate || publishCache.computeIfAbsent(
+                        a.getExamId() + "|" + a.getSessionId(),
+                        k -> isLiveResultPublished(a.getExamId(), a.getSessionId())))
                 .map(a -> {
                     String questionText = questionRepository.findById(a.getQuestionId())
                             .map(Question::getQuestionText)
@@ -984,5 +995,26 @@ private LiveExamSummaryResponse buildLiveExamSummary(Exam exam, String userId) {
                 })
                 .collect(Collectors.toList());
     }
-    
+
+    // Live exam এর result publish হয়েছে কিনা — ExamStudentService.buildAttemptHistoryResponse()
+    // এর সাথে একই লজিক (exam এর examDate+endTime পার হলে publish, অথবা পুরনো cycle-এ attempt হলে already published)
+    private boolean isLiveResultPublished(String examId, String sessionId) {
+        Exam exam = examRepository.findById(examId).orElse(null);
+        if (exam == null || exam.getExamDate() == null || exam.getEndTime() == null) {
+            return true; // window তথ্য না থাকলে block করার দরকার নেই
+        }
+
+        int currentCycleNumber = exam.getCycleNumber();
+        int attemptNumber = attemptHistoryRepository.findBySessionId(sessionId)
+                .map(ExamAttemptHistory::getAttemptNumber)
+                .orElse(currentCycleNumber); // history না পেলে current cycle ধরেই নিরাপদে gate করা হবে
+
+        boolean attemptedInOlderCycle = attemptNumber < currentCycleNumber;
+        if (attemptedInOlderCycle) {
+            return true; // আগের cycle-এর result ইতিমধ্যে চূড়ান্ত ও প্রকাশিত
+        }
+
+        LocalDateTime windowEnd = LocalDateTime.of(exam.getExamDate(), exam.getEndTime());
+        return LocalDateTime.now(BD_ZONE).isAfter(windowEnd);
+    }
 }
