@@ -234,7 +234,7 @@ public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
             @RequestHeader("X-User-Id") String userId,
             @RequestParam(required = false) Boolean onlyWrong) {
         try {
-            List<UserQuestionAttemptResponse> data = liveExamService.getUserAttemptHistory(userId, onlyWrong);
+            List<UserQuestionAttemptResponse> data = liveExamService.getUserAttemptHistory(userId, onlyWrong, true);
             return ResponseEntity.ok(Map.of("success", true, "data", data));
         } catch (Exception ex) {
             log.error("Error fetching attempt history for user {}", userId, ex);
@@ -257,5 +257,3 @@ public ResponseEntity<?> getPracticeQuestions(@PathVariable String examId) {
     }
     
 }
-
-
